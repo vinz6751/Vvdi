@@ -10,6 +10,7 @@ _linea_init:
     move.l    a1,_linea_fonts    // Pointer system fonts
     move.l    a2,_linea_routs    // Pointer start addr. Line-A routines
     movem.l   (a7)+,d0-d2/a0-a2  // Restore registers
+    rts
 
 _linea_vars:  .ds.l 1
 _linea_fonts: .ds.l 1    

@@ -36,7 +36,7 @@ typedef struct {
             uint16_t intout_count;
             uint16_t subopcode;
             uint16_t wkid;
-        } info;
+        };
         uint16_t word[12];
     } contrl;
     uint16_t intin[INTIN_SIZE];
@@ -143,6 +143,7 @@ const uint16_t work_out[] = {
 
 
 // Prototypes of VDI functions ------------------------------------------------
+// The vdi_xxx functions receive a VDI parameter block
 static void vdi_v_opnwk(vdi_parameter_block_t *pb);
 static void vdi_v_clswk(vdi_parameter_block_t *pb);
 static void vdi_v_clrwk(vdi_parameter_block_t *pb);
@@ -180,12 +181,12 @@ void vdi_dispatcher(vdi_parameter_block_t *pb) {
         vdi_v_clrwk, // 3
     };
 
-    switch (pb->contrl.info.opcode) {
+    switch (pb->contrl.opcode) {
         case 14: vdi_vs_color(pb); break;
         case 17: vdi_vsl_color(pb); break;
         case 129: vdi_vs_clip(pb); break;
         default:
-            (*vdi_calls[pb->contrl.info.opcode])(pb);
+            (*vdi_calls[pb->contrl.opcode])(pb);
             return;
     }    
 }
@@ -232,7 +233,7 @@ static void v_opnwk(const uint16_t *input, uint16_t *handle, uint16_t *output) {
     return;
 }
 static void vdi_v_opnwk(vdi_parameter_block_t *pb) {
-    v_opnwk(pb->intin, &pb->contrl.info.wkid, pb->intout);
+    v_opnwk(pb->intin, &pb->contrl.wkid, pb->intout);
 }
 
 
@@ -243,16 +244,18 @@ static void v_clswk(uint16_t handle) {
     vicky_deinit_fb();
 }
 static void vdi_v_clswk(vdi_parameter_block_t *pb) {
-    v_clswk(pb->contrl.info.wkid);
+    v_clswk(pb->contrl.wkid);
 }
 
 
 static void v_clrwk(uint16_t handle) {
-    // Set everything transparent
-    memset((void*)R32(v_bas_ad), 0, 800*600);
+    // Set everything transparent. TODO the below is VICKY specific,
+    // it doesn't belong here.
+    memset((void*)R32(v_bas_ad), 0, 
+        (workstation[handle].screen_info.max_x + 1) * (workstation[handle].screen_info.max_y + 1));
 }
 static void vdi_v_clrwk(vdi_parameter_block_t *pb) {
-    v_clrwk(pb->contrl.info.wkid);
+    v_clrwk(pb->contrl.wkid);
 }
 
 
@@ -275,7 +278,7 @@ static void vs_clip(uint16_t handle, uint16_t clip_flag, const vdi_point_t *pts)
     }
 }
 static void vdi_vs_clip(vdi_parameter_block_t *pb) {
-    vs_clip(pb->contrl.info.wkid, pb->intin[0], pb->ptsin.pts);
+    vs_clip(pb->contrl.wkid, pb->intin[0], pb->ptsin.pts);
 }
 
 
@@ -293,7 +296,7 @@ static void vs_color(int16_t handle, int16_t index, int16_t *rgb_in) {
     vicky_set_color(index, rgb_in[0] >> 2, rgb_in[1] >> 2, rgb_in[2] >> 2);
 }
 static void vdi_vs_color(vdi_parameter_block_t *pb) {
-    vs_color(pb->contrl.info.wkid, pb->intin[0], &pb->intin[1]);
+    vs_color(pb->contrl.wkid, pb->intin[0], &pb->intin[1]);
 }
 
 
@@ -305,7 +308,7 @@ static int16_t vsl_color(int16_t handle, int16_t index) {
     return index;
 }
 static void vdi_vsl_color(vdi_parameter_block_t *pb) {
-    vsl_color(pb->contrl.info.wkid, pb->intin[0]);
+    vsl_color(pb->contrl.wkid, pb->intin[0]);
 }
 
 
@@ -378,12 +381,42 @@ static void v_bar(uint16_t handle, vdi_point_t *pts) {
 }
 
 // Main -----------------------------------------------------------------------
+static void tests(void);
+uint16_t call_vdi(vdi_parameter_block_t *pb);
 
-void main(void)
+int main(void)
 {
     // So we can get access to fonts
     linea_init();
 
     // Install trap handler
     vdi_install();
+
+    tests();
+    
+    vdi_uninstall();
+
+    return 0;
+}
+
+
+static void tests(void) {
+    vdi_parameter_block_t pb;
+    int i;
+    uint16_t work_in[11],work_out[57];
+    uint16_t handle;
+
+    // Open workstation
+    pb.contrl.opcode = 1;
+    pb.contrl.ptsin_count = 0;
+    pb.contrl.intin_count = 11;
+    pb.contrl.intout_count = 57;
+    for(i = 0;i < 11;i++)
+        pb.intin[i] = work_in[i];
+    call_vdi(&pb);
+    handle = pb.contrl.wkid;
+    for(i = 0;i < 45;i++)
+        work_out[i] = pb.intout[i];
+    for(i = 0;i < 13;i++)
+        work_out[45+i] = pb.ptsout.words[i];
 }
