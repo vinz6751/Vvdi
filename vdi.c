@@ -153,6 +153,9 @@ static void vdi_vs_clip(vdi_parameter_block_t *pb);
 static void vdi_vs_color(vdi_parameter_block_t *pb);
 static void vdi_vsl_color(vdi_parameter_block_t *pb);
 
+// Utility methods -----------------------------------------------------------
+void debug(const char* __restrict__ s, ...);
+
 // Vector installation --------------------------------------------------------
 extern void vdi_trap_handler(void);
 
@@ -407,6 +410,7 @@ static void tests(void) {
     uint16_t handle;
 
     // Open workstation
+    _debug("Open workstation");
     pb.contrl.opcode = 1;
     pb.contrl.ptsin_count = 0;
     pb.contrl.intin_count = 11;
@@ -419,4 +423,15 @@ static void tests(void) {
         work_out[i] = pb.intout[i];
     for(i = 0;i < 13;i++)
         work_out[45+i] = pb.ptsout.words[i];
+    _debug("OK");
+
+    _debug("Close workstation");
+   pb.contrl.opcode = 2;
+   pb.contrl.ptsin_count = 0;
+   pb.contrl.intin_count = 0;
+   pb.contrl.wkid = handle;
+   call_vdi(&pb);
+   _debug("OK");
 }
+
+
