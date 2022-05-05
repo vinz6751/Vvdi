@@ -3,53 +3,25 @@
 #include <string.h>
 #include <osbind.h>
 
+#include "debug.h"
 #include "linea.h"
 #include "utils.h"
 #include "vdi.h"
-#include "vicky.h"
 
+// Drivers
+#include "vicky.h"
+#include "shifter.h"
 
 #define v_bas_ad 0x44e
 
 
-typedef struct {
-    uint16_t max_x;
-    uint16_t max_y;
-    uint32_t colors;
-    uint16_t line_length; // Length of a line in the frame buffer, in bytes
-} screen_info_t;
+vdi_driver_t *driver = &shifter_driver;
 
 
-#define PTSIN_SIZE 256
-#define PTSOUT_SIZE 256
-#define INTIN_SIZE 256
-#define INTOUT_SIZE 256
 #define WORKSTATIONS_SIZE 8
 
-typedef struct {
-    union {
-        struct {
-            uint16_t opcode;
-            uint16_t ptsin_count;
-            uint16_t ptsout_count;
-            uint16_t intin_count;
-            uint16_t intout_count;
-            uint16_t subopcode;
-            uint16_t wkid;
-        };
-        uint16_t word[12];
-    } contrl;
-    uint16_t intin[INTIN_SIZE];
-    union {
-        uint16_t words[PTSIN_SIZE];
-        vdi_point_t pts[(PTSIN_SIZE*sizeof(uint16_t))/sizeof(vdi_point_t)];
-    } ptsin;
-    uint16_t intout[INTOUT_SIZE];
-    union {
-        uint16_t words[PTSOUT_SIZE];
-        vdi_point_t pts[(PTSOUT_SIZE*sizeof(uint16_t))/sizeof(vdi_point_t)];
-    } ptsout;
-} vdi_parameter_block_t;
+
+
 
 
 typedef struct {
@@ -144,14 +116,14 @@ const uint16_t work_out[] = {
 
 // Prototypes of VDI functions ------------------------------------------------
 // The vdi_xxx functions receive a VDI parameter block
-static void vdi_v_opnwk(vdi_parameter_block_t *pb);
-static void vdi_v_clswk(vdi_parameter_block_t *pb);
-static void vdi_v_clrwk(vdi_parameter_block_t *pb);
+static void vdi_v_opnwk(vdi_pb_t *pb);
+static void vdi_v_clswk(vdi_pb_t *pb);
+static void vdi_v_clrwk(vdi_pb_t *pb);
 
 static void v_clrwk(uint16_t handle);
-static void vdi_vs_clip(vdi_parameter_block_t *pb);
-static void vdi_vs_color(vdi_parameter_block_t *pb);
-static void vdi_vsl_color(vdi_parameter_block_t *pb);
+static void vdi_vs_clip(vdi_pb_t *pb);
+static void vdi_vs_color(vdi_pb_t *pb);
+static void vdi_vsl_color(vdi_pb_t *pb);
 
 // Utility methods -----------------------------------------------------------
 void debug(const char* __restrict__ s, ...);
@@ -176,20 +148,23 @@ void vdi_uninstall(void)
 }
 
 // Trap handler function dispatcher -------------------------------------------
-void vdi_dispatcher(vdi_parameter_block_t *pb) {    
-    void (*vdi_calls[])(vdi_parameter_block_t *pb) = {
-        0L,
-        vdi_v_opnwk, // 1
-        vdi_v_clswk, // 2
-        vdi_v_clrwk, // 3
-    };
+static void (*const vdi_calls[])(vdi_pb_t *) = {
+    0L,
+    vdi_v_opnwk, // 1
+    vdi_v_clswk, // 2
+    vdi_v_clrwk, // 3
+};
 
-    switch (pb->contrl.opcode) {
+void vdi_dispatcher(vdi_pb_t *pb) {    
+
+    _debug("DISPATCHING pb=%p, opcode: %d", pb, pb->contrl->opcode);
+
+    switch (pb->contrl->opcode) {
         case 14: vdi_vs_color(pb); break;
         case 17: vdi_vsl_color(pb); break;
         case 129: vdi_vs_clip(pb); break;
         default:
-            (*vdi_calls[pb->contrl.opcode])(pb);
+            (*vdi_calls[pb->contrl->opcode])(pb);
             return;
     }    
 }
@@ -201,7 +176,8 @@ void vdi_dispatcher(vdi_parameter_block_t *pb) {
 workstation_t workstation[WORKSTATIONS_SIZE];
 
 void workstation_init(void) {
-    for (int i=0; i<WORKSTATIONS_SIZE; i++) {
+    int i;
+    for (i=0; i<WORKSTATIONS_SIZE; i++) {
         workstation[i].handle = i;
         workstation[i].in_use = false;
         workstation[i].draw_perimeter = true;
@@ -210,7 +186,8 @@ void workstation_init(void) {
 
 
 static void v_opnwk(const uint16_t *input, uint16_t *handle, uint16_t *output) {
-    for (int i=0; i<WORKSTATIONS_SIZE; i++) {
+    int i;
+    for (i=0; i<WORKSTATIONS_SIZE; i++) {
         if (workstation[i].in_use == false) {
             workstation[i].in_use  = true;
             // Copy input settings
@@ -220,10 +197,11 @@ static void v_opnwk(const uint16_t *input, uint16_t *handle, uint16_t *output) {
             memcpy(output, work_out, sizeof(work_out));            
             *handle = i;
 
-            vicky_init_fb();
+            driver->init();
+
             screen_info_t *si = &workstation[i].screen_info;
-            vicky_get_screen_info(&si->max_x, &si->max_y, &si->colors, &si->line_length);
-            
+            driver->get_screen_info(&si->max_x, &si->max_y, &si->colors, &si->line_length);
+
             output[0] = workstation[i].screen_info.max_x;
             output[1] = workstation[i].screen_info.max_y;
             output[13] = workstation[i].screen_info.colors;
@@ -235,8 +213,8 @@ static void v_opnwk(const uint16_t *input, uint16_t *handle, uint16_t *output) {
     }
     return;
 }
-static void vdi_v_opnwk(vdi_parameter_block_t *pb) {
-    v_opnwk(pb->intin, &pb->contrl.wkid, pb->intout);
+static void vdi_v_opnwk(vdi_pb_t *pb) {
+    v_opnwk(pb->intin, &pb->contrl->wkid, pb->intout);
 }
 
 
@@ -244,21 +222,20 @@ static void v_clswk(uint16_t handle) {
     if (workstation[handle].in_use == false)
         return;
 
-    vicky_deinit_fb();
+    driver->deinit();
 }
-static void vdi_v_clswk(vdi_parameter_block_t *pb) {
-    v_clswk(pb->contrl.wkid);
+static void vdi_v_clswk(vdi_pb_t *pb) {
+    v_clswk(pb->contrl->wkid);
 }
 
 
 static void v_clrwk(uint16_t handle) {
-    // Set everything transparent. TODO the below is VICKY specific,
-    // it doesn't belong here.
+    // Clear the framebuffer
     memset((void*)R32(v_bas_ad), 0, 
-        (workstation[handle].screen_info.max_x + 1) * (workstation[handle].screen_info.max_y + 1));
+        workstation[handle].screen_info.line_length * (workstation[handle].screen_info.max_y + 1));
 }
-static void vdi_v_clrwk(vdi_parameter_block_t *pb) {
-    v_clrwk(pb->contrl.wkid);
+static void vdi_v_clrwk(vdi_pb_t *pb) {
+    v_clrwk(pb->contrl->wkid);
 }
 
 
@@ -280,8 +257,8 @@ static void vs_clip(uint16_t handle, uint16_t clip_flag, const vdi_point_t *pts)
         wk->clip.p2 = pts[1];
     }
 }
-static void vdi_vs_clip(vdi_parameter_block_t *pb) {
-    vs_clip(pb->contrl.wkid, pb->intin[0], pb->ptsin.pts);
+static void vdi_vs_clip(vdi_pb_t *pb) {
+    vs_clip(pb->contrl->wkid, pb->intin[0], pb->ptsin.pts);
 }
 
 
@@ -295,11 +272,12 @@ static inline bool clip(workstation_t *wk, uint16_t x, uint16_t y) {
 
 // Colors ---------------------------------------------------------------------
 
-static void vs_color(int16_t handle, int16_t index, int16_t *rgb_in) {    
-    vicky_set_color(index, rgb_in[0] >> 2, rgb_in[1] >> 2, rgb_in[2] >> 2);
+static void vs_color(int16_t handle, int16_t index, int16_t *rgb_in) {
+    _debug("r:%u g:%u b:%u", rgb_in[0], rgb_in[1], rgb_in[2]), 
+    driver->set_color(index, rgb_in[0], rgb_in[1], rgb_in[2]);
 }
-static void vdi_vs_color(vdi_parameter_block_t *pb) {
-    vs_color(pb->contrl.wkid, pb->intin[0], &pb->intin[1]);
+static void vdi_vs_color(vdi_pb_t *pb) {
+    vs_color(pb->contrl->wkid, pb->intin[0], &pb->intin[1]);
 }
 
 
@@ -310,8 +288,8 @@ static int16_t vsl_color(int16_t handle, int16_t index) {
     wk->line_colour = index;
     return index;
 }
-static void vdi_vsl_color(vdi_parameter_block_t *pb) {
-    vsl_color(pb->contrl.wkid, pb->intin[0]);
+static void vdi_vsl_color(vdi_pb_t *pb) {
+    vsl_color(pb->contrl->wkid, pb->intin[0]);
 }
 
 
@@ -385,7 +363,7 @@ static void v_bar(uint16_t handle, vdi_point_t *pts) {
 
 // Main -----------------------------------------------------------------------
 static void tests(void);
-uint16_t call_vdi(vdi_parameter_block_t *pb);
+uint16_t call_vdi(vdi_pb_t *pb);
 
 int main(void)
 {
@@ -403,11 +381,42 @@ int main(void)
 }
 
 
+#define PTSIN_SIZE 256
+#define PTSOUT_SIZE 256
+#define INTIN_SIZE 256
+#define INTOUT_SIZE 256
+struct {
+    vdi_pb_contrl_t contrl;
+    uint16_t intin[INTIN_SIZE];
+    union {
+        uint16_t words[PTSIN_SIZE];
+        vdi_point_t pts[(PTSIN_SIZE*sizeof(uint16_t))/sizeof(vdi_point_t)];
+    } ptsin;
+    uint16_t intout[INTOUT_SIZE];
+    union {
+        uint16_t words[PTSOUT_SIZE];
+        vdi_point_t pts[(PTSOUT_SIZE*sizeof(uint16_t))/sizeof(vdi_point_t)];
+    } ptsout;
+} pb;
+
+// void call_vdi2(vdi_pb_t *b) {
+//     _debug("call_vdi2 %p",b);
+// }
+
 static void tests(void) {
-    vdi_parameter_block_t pb;
+    vdi_pb_t vdipb;
+
+    vdipb.contrl = &pb.contrl;
+    vdipb.intin = pb.intin;
+    vdipb.intout = pb.intout;
+    vdipb.ptsin.words = pb.ptsin.words;
+    vdipb.ptsout.words = pb.ptsout.words;
+
     int i;
     uint16_t work_in[11],work_out[57];
     uint16_t handle;
+
+    _debug("PB=%p",&vdipb);
 
     // Open workstation
     _debug("Open workstation");
@@ -415,23 +424,38 @@ static void tests(void) {
     pb.contrl.ptsin_count = 0;
     pb.contrl.intin_count = 11;
     pb.contrl.intout_count = 57;
-    for(i = 0;i < 11;i++)
+    for(i = 0; i < 11; i++)
         pb.intin[i] = work_in[i];
-    call_vdi(&pb);
+    _debug("PB=%p",&vdipb);
+    call_vdi(&vdipb);
     handle = pb.contrl.wkid;
-    for(i = 0;i < 45;i++)
+    for(i = 0; i < 45; i++)
         work_out[i] = pb.intout[i];
-    for(i = 0;i < 13;i++)
+    for(i = 0; i < 13; i++)
         work_out[45+i] = pb.ptsout.words[i];
     _debug("OK");
 
+    // vs_color: Set color 0
+    _debug("vs_color");
+    pb.contrl.opcode = 14;
+    pb.contrl.ptsin_count = 0;
+    pb.contrl.intin_count = 4;
+    pb.contrl.intout_count = 0;
+    pb.intin[0] = 0;
+    pb.intin[1] = 0;
+    pb.intin[2] = 142;
+    pb.intin[3] = 0;
+    call_vdi(&vdipb);
+
+    // 
+
     _debug("Close workstation");
-   pb.contrl.opcode = 2;
-   pb.contrl.ptsin_count = 0;
-   pb.contrl.intin_count = 0;
-   pb.contrl.wkid = handle;
-   call_vdi(&pb);
-   _debug("OK");
+    pb.contrl.opcode = 2;
+    pb.contrl.ptsin_count = 0;
+    pb.contrl.intin_count = 0;
+    pb.contrl.wkid = handle;
+    call_vdi(&vdipb);
+    _debug("OK");
 }
 
 

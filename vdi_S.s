@@ -1,15 +1,26 @@
 | VDI assembler routines
 
+    | Exports
     .globl  _vdi_trap_handler
     .globl  _old_trap_handler
     .globl _call_vdi
 
+    | Imports
+    .global _vdi_dispatcher
+
 .equ VDI_MAGIC, 0x78
 
-    .dc.b   'X','B','R','A'
+
+    .ascii   "XBRA"
 _old_trap_handler:
     .dc.l   0
+| Trap #2 handler
 _vdi_trap_handler:
+    movem.l d0-d1/a0-a1,-(sp)  | Save GCC scratch registers    
+    move.l  d1,-(sp)
+    jbsr    _vdi_dispatcher
+    addq.l  #4,sp
+    movem.l (sp)+,d0-d1/a0-a1
     rte
 
 | How user program calls the VDI, passing a VDI parameter block on the stack
