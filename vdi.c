@@ -1,12 +1,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <osbind.h>
 
 #include "debug.h"
+#include "fill_patterns.h"
 #include "linea.h"
 #include "utils.h"
 #include "vdi.h"
+#include "trap.h"
 
 // Drivers
 #include "vicky.h"
@@ -14,161 +15,99 @@
 
 #define v_bas_ad 0x44e
 
-
-vdi_driver_t *driver = &shifter_driver;
+#define DEFAULT_DRIVER &shifter_driver
 
 
 #define WORKSTATIONS_SIZE 8
 
-
-
-
-
-typedef struct {
-    bool     in_use;
-    clip_settings_t clip;
-    screen_info_t screen_info;
-    bool          draw_perimeter;
-
-// In, layed out the same as in the input of opening a workstation so we can copy memory during opnwk
-    uint16_t handle;
-    uint16_t line_type;
-    uint16_t line_colour;
-    uint16_t line_marker_type;
-    uint16_t line_marker_colour;
-    uint16_t line_font_id;
-    uint16_t line_text_colour;
-    uint16_t line_fill_interior_style;
-    uint16_t line_fill_style;
-    uint16_t line_fill_colour;
-    uint16_t coordinates_type; // 0 = Normalized, 2 = Raster (normal use)
-    uint16_t page_format;
-    char*    filename;
-    uint16_t reserved14;
-    uint16_t reserved15;
-} workstation_t;
-
-const uint16_t work_out[] = {
-    0,  // 0: x max
-    0,  // 1: y max
-    0,  // Scalability
-    372,   // Pixel width in microns,
-    372,   // Pixel height in microns,
-    3,  // Number of character heights (0: continuous scaling)
-    7,  // Number of line types
-    0,  // Number of line widths (0: continuous scaling)
-    6,  // Number of marker types
-    0,  // Number of marker heights  (0: continuous scaling)
-    1,  // Number of accessible fonts
-    24, // Number of patterns
-    12, // Number of hatch styles
-    0,  // 13: Number of simultaneous colors
-    1,  // Number of graphics primitives supported
-    // 15 List of supported graphics primitives. -1 indicates end of list.
-    1,  // 1 v_bar supported
-    2,  // 2 v_arc supported
-    3,  // 3 v_pieslice supported
-    4,  // 4 v_circle supported
-    5,  // 5 v_ellipse supported
-    6,  // 6 v_ellarc supported
-    7,  // 7 v_ellpie supported
-    8,  // 8 v_rbox supported
-    9,  // 9 v_rfbox supported
-    10, // 10 v_justified supported
-    // 24: ?
-    // 25: list of attributes supported for each graphics primitive
-    3,
-    0,
-    3,
-    3,
-    3,
-    0,
-    3,
-    0,
-    3,
-    2
-    -1, // 35: colour capability flag
-    0,  // 36: text rotation capability flag
-    0,  // 37: fill area capability flag
-    0,  // 38: CELLARRAY capability flag
-    0,  // 39: Number of color levels available. 0=32767+, 2=monochrome
-    2,  // 40: Locators available for graphics cursor control (0:none, 1:keyb, 2:keyb+mouse)
-    1,  // 41: Number of valuator devices for various inputs (0:nonte, 1:keyb, 2:another device)
-    1,  // 42: Number of choice devices available (0:none, 1:Fn keys on keyb, 2:Fn keys+extra keypad)
-    1,  // 43: Number of string devices (0:none, 1:keyboard)
-    0,  // 44: Device type (0:output only, others see tos.hyp)
-    5,  // 45: Minimum character width
-    4,  // 46: Minimum character height
-    7,  // 47: Maximum character width
-    13, // 48: Maximum character height
-    1,  // 49: Minimum representable line width (pixels)
-    0,  // 50
-    40, // 51: Max line width
-    0,  // 52:
-    15, // 53: Minimimum marker width
-    11, // 54: Minimimum marker height
-    16, // 55: Maximum marker width
-    16, // 56: Maximum marker height
+const workstation_features_t default_capabilities = {
+    .words = {
+        0,  // 0: x max
+        0,  // 1: y max
+        0,  // Scalability
+        372,   // Pixel width in microns,
+        372,   // Pixel height in microns,
+        3,  // Number of character heights (0: continuous scaling)
+        7,  // Number of line types
+        0,  // Number of line widths (0: continuous scaling)
+        6,  // Number of marker types
+        0,  // Number of marker heights  (0: continuous scaling)
+        1,  // Number of accessible fonts
+        24, // Number of patterns
+        12, // Number of hatch styles
+        0,  // 13: Number of simultaneous colors
+        1,  // Number of graphics primitives supported
+        // 15 List of supported graphics primitives. -1 indicates end of list.
+        1,  // 1 v_bar supported
+        2,  // 2 v_arc supported
+        3,  // 3 v_pieslice supported
+        4,  // 4 v_circle supported
+        5,  // 5 v_ellipse supported
+        6,  // 6 v_ellarc supported
+        7,  // 7 v_ellpie supported
+        8,  // 8 v_rbox supported
+        9,  // 9 v_rfbox supported
+        10, // 10 v_justified supported
+        // 24: ?
+        // 25: list of attributes supported for each graphics primitive
+        3,
+        0,
+        3,
+        3,
+        3,
+        0,
+        3,
+        0,
+        3,
+        2
+        -1, // 35: colour capability flag
+        0,  // 36: text rotation capability flag
+        0,  // 37: fill area capability flag
+        0,  // 38: CELLARRAY capability flag
+        0,  // 39: Number of color levels available. 0=32767+, 2=monochrome
+        2,  // 40: Locators available for graphics cursor control (0:none, 1:keyb, 2:keyb+mouse)
+        1,  // 41: Number of valuator devices for various inputs (0:nonte, 1:keyb, 2:another device)
+        1,  // 42: Number of choice devices available (0:none, 1:Fn keys on keyb, 2:Fn keys+extra keypad)
+        1,  // 43: Number of string devices (0:none, 1:keyboard)
+        0,  // 44: Device type (0:output only, others see tos.hyp)
+        5,  // 45: Minimum character width
+        4,  // 46: Minimum character height
+        7,  // 47: Maximum character width
+        13, // 48: Maximum character height
+        1,  // 49: Minimum representable line width (pixels)
+        0,  // 50
+        40, // 51: Max line width
+        0,  // 52:
+        15, // 53: Minimimum marker width
+        11, // 54: Minimimum marker height
+        16, // 55: Maximum marker width
+        16, // 56: Maximum marker height
+    }
 };
 
 
-
-
 // Prototypes of VDI functions ------------------------------------------------
-// The vdi_xxx functions receive a VDI parameter block
-static void vdi_v_opnwk(vdi_pb_t *pb);
-static void vdi_v_clswk(vdi_pb_t *pb);
-static void vdi_v_clrwk(vdi_pb_t *pb);
+void v_clrwk(uint16_t handle);
 
-static void v_clrwk(uint16_t handle);
-static void vdi_vs_clip(vdi_pb_t *pb);
-static void vdi_vs_color(vdi_pb_t *pb);
-static void vdi_vsl_color(vdi_pb_t *pb);
+
+// Helpers
+static void set_fill_pattern(workstation_settings_t *settings);
+static inline void sort_corners(vdi_rectangle_t * rect);
 
 // Utility methods -----------------------------------------------------------
 void debug(const char* __restrict__ s, ...);
 
-// Vector installation --------------------------------------------------------
-extern void vdi_trap_handler(void);
-
-#define TRAP2_VECNR 34
-extern void (*old_trap_handler)();
 
 void vdi_install(void)
 {
-    old_trap_handler = Setexc(TRAP2_VECNR, -1L);
-    Setexc(TRAP2_VECNR,vdi_trap_handler);
+    trap_install();
 }
 
 
 void vdi_uninstall(void)
 {
-    old_trap_handler = Setexc(TRAP2_VECNR, -1L);
-    Setexc(TRAP2_VECNR,vdi_trap_handler);  
+    trap_uninstall();
 }
-
-// Trap handler function dispatcher -------------------------------------------
-static void (*const vdi_calls[])(vdi_pb_t *) = {
-    0L,
-    vdi_v_opnwk, // 1
-    vdi_v_clswk, // 2
-    vdi_v_clrwk, // 3
-};
-
-void vdi_dispatcher(vdi_pb_t *pb) {    
-
-    _debug("DISPATCHING pb=%p, opcode: %d", pb, pb->contrl->opcode);
-
-    switch (pb->contrl->opcode) {
-        case 14: vdi_vs_color(pb); break;
-        case 17: vdi_vsl_color(pb); break;
-        case 129: vdi_vs_clip(pb); break;
-        default:
-            (*vdi_calls[pb->contrl->opcode])(pb);
-            return;
-    }    
-}
-
 
 
 // Workstation management------------------------------------------------------
@@ -180,120 +119,278 @@ void workstation_init(void) {
     for (i=0; i<WORKSTATIONS_SIZE; i++) {
         workstation[i].handle = i;
         workstation[i].in_use = false;
-        workstation[i].draw_perimeter = true;
     }
 }
 
 
-static void v_opnwk(const uint16_t *input, uint16_t *handle, uint16_t *output) {
+void v_opnwk(const uint16_t *input, uint16_t *handle, uint16_t *output) {
     int i;
-    for (i=0; i<WORKSTATIONS_SIZE; i++) {
-        if (workstation[i].in_use == false) {
-            workstation[i].in_use  = true;
-            // Copy input settings
-            memcpy(&(workstation[i].line_type), input, sizeof(uint16_t)*16);
+    for (i=1; i<WORKSTATIONS_SIZE; i++) { // FIXME we start with one so we never return 0 on success (0 means failure). Wastes memory!
+        workstation_t *wk = &workstation[i];
+
+        if (wk->in_use == false) {
+            wk->in_use  = true;
+
+            // Defaults
+            wk->settings.write_mode = MD_REPLACE;
+            wk->settings.fill_interior_style = DEF_FILL_STYLE;
+            wk->settings.fill_pattern_hatch_style = DEF_FILL_PATTERN;
+            set_fill_pattern(&wk->settings); // Needs to be called to setup internal fill stuff
+
+            // Copy input settings. FIXME BROKEN, we'd need to copy words individually from corresponding workstation_settings_t props.
+            memcpy(&(wk->settings), input, sizeof(uint16_t)*16);
 
             // Fill output
-            memcpy(output, work_out, sizeof(work_out));            
             *handle = i;
 
-            driver->init();
+            // We're a physical workstation so take care of driver stuff
+            wk->driver = DEFAULT_DRIVER; // TODO when we support printers etc. ;) this will have to change
+            wk->physical = true;
+            if (wk->physical) {
+                wk->driver->init(&wk->settings);
+            }
 
-            screen_info_t *si = &workstation[i].screen_info;
-            driver->get_screen_info(&si->max_x, &si->max_y, &si->colors, &si->line_length);
+            screen_info_t *si = &wk->screen_info;
+            wk->driver->get_screen_info(&si->max_x, &si->max_y, &si->colors, &si->line_length);
 
-            output[0] = workstation[i].screen_info.max_x;
-            output[1] = workstation[i].screen_info.max_y;
-            output[13] = workstation[i].screen_info.colors;
+            wk->driver->get_features((workstation_features_t*)output);
+            output[0] = wk->screen_info.max_x;
+            output[1] = wk->screen_info.max_y;
+            output[13] = wk->screen_info.colors;
 
-            v_clrwk(i);
+            if (wk->physical)
+                v_clrwk(i);
 
             return;
         }
     }
+    *handle = 0;
     return;
 }
-static void vdi_v_opnwk(vdi_pb_t *pb) {
-    v_opnwk(pb->intin, &pb->contrl->wkid, pb->intout);
-}
 
 
-static void v_clswk(uint16_t handle) {
-    if (workstation[handle].in_use == false)
+void v_clswk(uint16_t handle) {
+    workstation_t *wk = &workstation[handle];
+    
+    if (wk->in_use == false)
         return;
 
-    driver->deinit();
-}
-static void vdi_v_clswk(vdi_pb_t *pb) {
-    v_clswk(pb->contrl->wkid);
+    wk->driver->deinit();
+    wk->in_use = false;
 }
 
 
-static void v_clrwk(uint16_t handle) {
+void v_clrwk(uint16_t handle) {
     // Clear the framebuffer
     memset((void*)R32(v_bas_ad), 0, 
         workstation[handle].screen_info.line_length * (workstation[handle].screen_info.max_y + 1));
-}
-static void vdi_v_clrwk(vdi_pb_t *pb) {
-    v_clrwk(pb->contrl->wkid);
 }
 
 
 // Clipping -------------------------------------------------------------------
 
-static void clip_init(workstation_t *wk) {
-    wk->clip.enabled = 0;
-    wk->clip.p1.x = wk->clip.p1.y = 0;
-    wk->clip.p2.x = wk->screen_info.max_x;
-    wk->clip.p2.y = wk->screen_info.max_y;
-    wk->clip.enabled = true;
-}
-
-static void vs_clip(uint16_t handle, uint16_t clip_flag, const vdi_point_t *pts) {
+void vs_clip(uint16_t handle, uint16_t clip_flag, vdi_rectangle_t *rect) {
     workstation_t *wk = &workstation[handle];
     
-    if (wk->clip.enabled = clip_flag != 0) {
-        wk->clip.p1 = pts[0];
-        wk->clip.p2 = pts[1];
+    wk->settings.clip = clip_flag;
+    if (wk->settings.clip) {
+        sort_corners(rect);
+        wk->settings.xmn_clip = MAX(0, rect->x1);
+        wk->settings.ymn_clip = MAX(0, rect->y1);
+        wk->settings.xmx_clip = MIN(wk->screen_info.max_x, rect->x2);
+        wk->settings.ymx_clip = MIN(wk->screen_info.max_y, rect->y2);
+    } else {
+        wk->settings.xmn_clip = 0;
+        wk->settings.ymn_clip = 0;
+        wk->settings.xmx_clip = wk->screen_info.max_x;
+        wk->settings.ymx_clip = wk->screen_info.max_y;
     }
-}
-static void vdi_vs_clip(vdi_pb_t *pb) {
-    vs_clip(pb->contrl->wkid, pb->intin[0], pb->ptsin.pts);
-}
-
-
-static inline bool clip(workstation_t *wk, uint16_t x, uint16_t y) {
-    return (!wk->clip.enabled) || (
-        (x >= wk->clip.p1.x) &&
-        (x <= wk->clip.p2.x) &&
-        (y >= wk->clip.p1.y) &&
-        (y <= wk->clip.p2.y));
 }
 
 // Colors ---------------------------------------------------------------------
 
-static void vs_color(int16_t handle, int16_t index, int16_t *rgb_in) {
-    _debug("r:%u g:%u b:%u", rgb_in[0], rgb_in[1], rgb_in[2]), 
-    driver->set_color(index, rgb_in[0], rgb_in[1], rgb_in[2]);
-}
-static void vdi_vs_color(vdi_pb_t *pb) {
-    vs_color(pb->contrl->wkid, pb->intin[0], &pb->intin[1]);
+void vs_color(int16_t handle, int16_t index, int16_t *rgb_in) {
+    workstation[handle].driver->set_color(index, rgb_in[0], rgb_in[1], rgb_in[2]);
 }
 
 
-static int16_t vsl_color(int16_t handle, int16_t index) {    
+// Drawing parameters ---------------------------------------------------------
+
+int16_t vsl_color(int16_t handle, int16_t index) {
     workstation_t *wk = &workstation[handle];
     if (index > wk->screen_info.colors)
         index = 1;    
-    wk->line_colour = index;
+    wk->settings.line_colour = index;
     return index;
 }
-static void vdi_vsl_color(vdi_pb_t *pb) {
-    vsl_color(pb->contrl->wkid, pb->intin[0]);
+
+
+int16_t vsf_color(int16_t handle, int16_t index) {
+    workstation_t *wk = &workstation[handle];
+    if (index > wk->screen_info.colors)
+        index = 1;    
+    wk->settings.fill_color = index;
+    return index;
 }
+
+
+int16_t vsf_perimeter(int16_t handle, int16_t enable) {
+    workstation_t *wk = &workstation[handle];
+    wk->settings.fill_perimeter = enable;
+    return enable;
+}
+
+
+uint16_t vsf_style(uint16_t handle, uint16_t style) {
+    workstation_t *wk = &workstation[handle];
+
+    if (wk->settings.fill_interior_style == FIS_PATTERN) {
+        if (style > MAX_FILL_PATTERN || style < MIN_FILL_PATTERN)
+            style = DEF_FILL_PATTERN;
+    } else if (style > MAX_FILL_HATCH || style < MIN_FILL_HATCH)
+            style = DEF_FILL_HATCH;
+
+    wk->settings.fill_pattern_hatch_style = style;
+    set_fill_pattern(&wk->settings);
+    return style;
+}
+
+
+uint16_t vsf_interior(uint16_t handle, uint16_t style) {
+    workstation_t *wk = &workstation[handle];
+
+    if (style < MIN_FILL_STYLE || style > MAX_FILL_STYLE)
+        style = DEF_FILL_STYLE;
+    wk->settings.fill_interior_style = style;
+    set_fill_pattern(&wk->settings);
+    return style;
+}
+
+
+void vqf_attributes(uint16_t handle, uint16_t *output)
+{
+    workstation_t *wk = &workstation[handle];
+
+    *output++ = wk->settings.fill_interior_style;
+    *output++ = wk->settings.fill_color;
+    *output++ = wk->settings.fill_pattern_hatch_style;
+    *output++ = wk->settings.write_mode;
+    *output = wk->settings.fill_perimeter;
+}
+
+
+uint16_t vswr_mode(uint16_t handle, uint16_t mode) {
+    workstation_t *wk = &workstation[handle];
+
+    if (mode < MIN_WRT_MODE || mode > MAX_WRT_MODE)
+        mode = DEF_WRT_MODE;
+    wk->settings.write_mode = mode;
+}
+
 
 
 // Graphics Drawing Primitives ------------------------------------------------
+
+// Rearrange corners or a rectangle so we have (lower left, upper right). Was arb_corner
+static inline void sort_corners(vdi_rectangle_t * rect)
+{
+    /* Fix the x coordinate values, if necessary. */
+    if (rect->x1 > rect->x2) {
+        int16_t temp = rect->x1;
+        rect->x1 = rect->x2;
+        rect->x2 = temp;
+    }
+
+    /* Fix the y coordinate values, if necessary. */
+    if (rect->y1 > rect->y2) {
+        int16_t temp = rect->y1;
+        rect->y1 = rect->y2;
+        rect->y2 = temp;
+    }
+}
+
+#if 0 // that shouldn't be needed as we can pass the workstation_settings_t. Unless it gets spoiled by the callee.
+void Vwk2Attrib(const workstation_t *vwk, VwkAttrib *attr, const uint16_t color)
+{
+    /* in the same order as in Vwk, so that GCC
+     * can use longs for copying words
+     */
+    attr->clip = vwk->clip;
+    attr->multifill = vwk->multifill;
+    attr->pattern_mask = vwk->pattern_mask;
+    attr->pattern_ptr = vwk->pattern_ptr;
+    attr->wrt_mode = vwk->wrt_mode;
+    attr->color = color;
+}
+#endif
+
+// Helps setup the fill pattern state variables
+static void set_fill_pattern(workstation_settings_t *settings)
+{
+    uint16_t fi, pm;
+    const uint16_t *pp = NULL;
+
+    fi = settings->fill_index;
+    pm = 0;
+    switch (settings->fill_interior_style) {
+    case FIS_HOLLOW:
+        pp = &HOLLOW;
+        break;
+
+    case FIS_SOLID:
+        pp = &SOLID;
+        break;
+
+    case FIS_PATTERN:
+        if (fi < 8) {
+            pm = DITHRMSK;
+            pp = &DITHER[fi * (pm + 1)];
+        } else {
+            pm = OEMMSKPAT;
+            pp = &OEMPAT[(fi - 8) * (pm + 1)];
+        }
+        break;
+    case FIS_HATCH:
+        if (fi < 6) {
+            pm = HAT_0_MSK;
+            pp = &HATCH0[fi * (pm + 1)];
+        } else {
+            pm = HAT_1_MSK;
+            pp = &HATCH1[(fi - 6) * (pm + 1)];
+        }
+        break;
+    case FIS_USER:
+        pm = 0x000f;
+        pp = (uint16_t*)&settings->ud_patrn[0];
+        break;
+    }
+    settings->pattern_ptr = (uint16_t*)pp;
+    settings->pattern_mask = pm;
+}
+
+// Draw filled rectangle
+void vr_recfl(uint16_t handle, vdi_point_t *pts)
+{
+    sort_corners((vdi_rectangle_t*)pts);
+
+    // Make temporary copy to prevent the clipping code from damaging
+    // the PTSIN values we might need later on for perimeter draws
+    vdi_rectangle_t rect = *(vdi_rectangle_t*)pts;
+
+#if 0
+    if (vwk->clip)
+        if (!clipbox(VDI_CLIP(vwk), &rect))
+            return;
+#endif
+    /* do the real work... */
+    workstation_t *wk = &workstation[handle];
+    wk->driver->draw_rectangle(&wk->settings, &rect);
+}
+
+
+
+
+#if 0
 
 static void v_bar(uint16_t handle, vdi_point_t *pts) {
     workstation_t *wk = &workstation[handle];
@@ -306,13 +403,21 @@ static void v_bar(uint16_t handle, vdi_point_t *pts) {
         from_x = pts[1].x;
         to_x = pts[0].x;
     }
+    else {
+        from_x = pts[0].x;
+        to_x = pts[1].x;
+    }
+
     if (pts[0].y > pts[1].y) {
         from_y = pts[1].y;
         to_y = pts[0].y;
+    } else {
+        from_y = pts[0].y;
+        to_y = pts[1].y;
     }
     
     // Clip rectangle
-    if (wk->clip.enabled) {
+    if (wk->clip.enabled && 0) {
         from_x = MAX(from_x, wk->clip.p1.x);
         from_x = MAX(from_y, wk->clip.p1.y);
         to_x = MIN(to_x, wk->clip.p2.x);
@@ -322,27 +427,28 @@ static void v_bar(uint16_t handle, vdi_point_t *pts) {
     h = to_y - from_y;
     if (h < 0)
         return;
-    
+
     w = to_x - from_x;
     if (w < 0)
         return;
-    
+
     uint8_t *fb = *((uint8_t**)v_bas_ad);
     uint8_t *top_left = &fb[wk->screen_info.line_length * from_y + from_x];
-
-
     uint16_t i;
 
     // Draw perimeter
-    if (wk->draw_perimeter) {
+    if (wk->settings.fill_perimeter == true) {
         const int total_border_size = 2;
         uint8_t *top_border = top_left;
         uint8_t *btm_border = top_left + wk->screen_info.line_length * h;    
         // Top/bottom borders
         i = w;
+_debug("\ni = %d\n",i);
+
         do {
-            *top_border++ = (uint8_t)wk->line_fill_colour;
-            *btm_border++ = (uint8_t)wk->line_fill_colour;
+                    _debug("*");
+            *top_border++ = (uint8_t)wk->fill_color;
+            *btm_border++ = (uint8_t)wk->fill_color;
         } while (i--);
         from_y++;
         to_y--;
@@ -352,110 +458,14 @@ static void v_bar(uint16_t handle, vdi_point_t *pts) {
         uint8_t *left_border = top_left + wk->screen_info.line_length;
         uint8_t *right_border = left_border + w;
         do {
-            *left_border++ = (uint8_t)wk->line_fill_colour;
-            *right_border++ = (uint8_t)wk->line_fill_colour;
+            *left_border++ = (uint8_t)wk->fill_color;
+            *right_border++ = (uint8_t)wk->fill_color;
         } while (i--);
         from_x++;
         to_x--;
     }
-
 }
-
-// Main -----------------------------------------------------------------------
-static void tests(void);
-uint16_t call_vdi(vdi_pb_t *pb);
-
-int main(void)
-{
-    // So we can get access to fonts
-    linea_init();
-
-    // Install trap handler
-    vdi_install();
-
-    tests();
-    
-    vdi_uninstall();
-
-    return 0;
+static void vdi_v_bar(vdi_pb_t *pb) {
+    v_bar(pb->contrl->wkid, pb->ptsin.pts);
 }
-
-
-#define PTSIN_SIZE 256
-#define PTSOUT_SIZE 256
-#define INTIN_SIZE 256
-#define INTOUT_SIZE 256
-struct {
-    vdi_pb_contrl_t contrl;
-    uint16_t intin[INTIN_SIZE];
-    union {
-        uint16_t words[PTSIN_SIZE];
-        vdi_point_t pts[(PTSIN_SIZE*sizeof(uint16_t))/sizeof(vdi_point_t)];
-    } ptsin;
-    uint16_t intout[INTOUT_SIZE];
-    union {
-        uint16_t words[PTSOUT_SIZE];
-        vdi_point_t pts[(PTSOUT_SIZE*sizeof(uint16_t))/sizeof(vdi_point_t)];
-    } ptsout;
-} pb;
-
-// void call_vdi2(vdi_pb_t *b) {
-//     _debug("call_vdi2 %p",b);
-// }
-
-static void tests(void) {
-    vdi_pb_t vdipb;
-
-    vdipb.contrl = &pb.contrl;
-    vdipb.intin = pb.intin;
-    vdipb.intout = pb.intout;
-    vdipb.ptsin.words = pb.ptsin.words;
-    vdipb.ptsout.words = pb.ptsout.words;
-
-    int i;
-    uint16_t work_in[11],work_out[57];
-    uint16_t handle;
-
-    _debug("PB=%p",&vdipb);
-
-    // Open workstation
-    _debug("Open workstation");
-    pb.contrl.opcode = 1;
-    pb.contrl.ptsin_count = 0;
-    pb.contrl.intin_count = 11;
-    pb.contrl.intout_count = 57;
-    for(i = 0; i < 11; i++)
-        pb.intin[i] = work_in[i];
-    _debug("PB=%p",&vdipb);
-    call_vdi(&vdipb);
-    handle = pb.contrl.wkid;
-    for(i = 0; i < 45; i++)
-        work_out[i] = pb.intout[i];
-    for(i = 0; i < 13; i++)
-        work_out[45+i] = pb.ptsout.words[i];
-    _debug("OK");
-
-    // vs_color: Set color 0
-    _debug("vs_color");
-    pb.contrl.opcode = 14;
-    pb.contrl.ptsin_count = 0;
-    pb.contrl.intin_count = 4;
-    pb.contrl.intout_count = 0;
-    pb.intin[0] = 0;
-    pb.intin[1] = 0;
-    pb.intin[2] = 142;
-    pb.intin[3] = 0;
-    call_vdi(&vdipb);
-
-    // 
-
-    _debug("Close workstation");
-    pb.contrl.opcode = 2;
-    pb.contrl.ptsin_count = 0;
-    pb.contrl.intin_count = 0;
-    pb.contrl.wkid = handle;
-    call_vdi(&vdipb);
-    _debug("OK");
-}
-
-
+#endif

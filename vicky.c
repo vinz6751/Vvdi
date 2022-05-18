@@ -19,8 +19,7 @@ uint32_t old_vicky_cursor_ctrl;
 uint32_t old_vicky_bmp1_ctrl;
 uint32_t old_vicky_bmp1_addr;
 
-
-static void init(void) {
+static void init(workstation_settings_t *settings) {
     old_vicky_ctrl = R32(VICKY2_CTRL);
     R32(VICKY2_CTRL) &= ~0x00000301L;  // Reset resolution, disable text mode (just in case)
     R32(VICKY2_CTRL) |= 0x0100/*800*600*/ | 4|8; // Bitmap + gfx engine
@@ -46,6 +45,11 @@ static void deinit(void) {
     R32(VICKY2_CURSOR_CTRL) = old_vicky_cursor_ctrl;
     R32(VICKY2_BMP1_CTRL) = old_vicky_bmp1_ctrl;
     R32(VICKY2_BMP1_ADDR) = old_vicky_bmp1_addr;
+}
+
+static void get_features(workstation_features_t *features) {
+    for (int i=0; i<57 ; i++)
+        features->words[i] = default_capabilities.words[i];
 }
 
 static void get_screen_info(uint16_t *resx, uint16_t *resy, uint32_t *ncolors, uint16_t *line_length) {
@@ -113,12 +117,19 @@ static void set_pixels(const vdi_point_t *pts, uint16_t n, uint16_t color) {
     }
 }
 
+static void draw_line(const vdi_line_t *line, workstation_settings_t *settings, uint16_t color) {
+    // TODO    
+}
+
 vdi_driver_t vicky2_driver = {
     init,
     deinit,
+    get_features,
     get_screen_info,
     set_color,
     get_color,
     resolution_has_changed,
-    set_pixels
+    set_pixels,
+    draw_line,
+    0L
 };

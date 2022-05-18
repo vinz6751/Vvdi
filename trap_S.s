@@ -1,7 +1,7 @@
-| VDI assembler routines
+| VDI trap interface
 
     | Exports
-    .globl  _vdi_trap_handler
+    .globl  _trap_handler
     .globl  _old_trap_handler
     .globl _call_vdi
 
@@ -15,7 +15,7 @@
 _old_trap_handler:
     .dc.l   0
 | Trap #2 handler
-_vdi_trap_handler:
+_trap_handler:
     movem.l d0-d1/a0-a1,-(sp)  | Save GCC scratch registers    
     move.l  d1,-(sp)
     jbsr    _vdi_dispatcher

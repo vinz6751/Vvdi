@@ -55,8 +55,8 @@ typedef struct
   uint16_t ln_mask;                /*  34: Line pattern                 */
   int16_t  wrt_mode,               /*  36: Writing modes                */
            x1, y1, x2, y2;         /*  38: Coordinate                   */
-  void     *patptr;                /*  46: Fill pattern                 */
-  uint16_t patmsk;                 /*  50: Fill pattern "mask"          */
+  void     *pattern_ptr;                /*  46: Fill pattern                 */
+  uint16_t pattern_mask;                 /*  50: Fill pattern "mask"          */
   int16_t  multifill,              /*  52: Fill pattern for planes      */
            clip,                   /*  54: Flag for clipping            */
            xmn_clip, ymn_clip,
