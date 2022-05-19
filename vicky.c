@@ -48,7 +48,8 @@ static void deinit(void) {
 }
 
 static void get_features(workstation_features_t *features) {
-    for (int i=0; i<57 ; i++)
+    int i;
+    for (i=0; i<57 ; i++)
         features->words[i] = default_capabilities.words[i];
 }
 
