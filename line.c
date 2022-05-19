@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "debug.h"
 #include "utils.h"
 #include "vdi.h"
 
@@ -10,9 +11,56 @@ static bool last_line; // (LSTLIN) indicates that line to draw is the last one.
 static bool clip_line(workstation_t *wk, vdi_line_t *line);
 static int16_t clip_code(workstation_t *wk, int16_t x, int16_t y);
 void abline(const vdi_line_t *line, workstation_t *wk, uint16_t color);
+void polyline(workstation_t *wk, const vdi_point_t *point, int count, int16_t color);
+
+/* the six predefined line styles */
+const uint16_t LINE_STYLE[6] = { 0xFFFF, 0xFFF0, 0xC0C0, 0xFF18, 0xFF00, 0xF191 };
+
+// Set the workstation line pattern bits according to settings (formerly set_LN_MASK).
+void apply_line_index(workstation_t *wk)
+{
+    int16_t l;
+
+    l = wk->settings.line_index;
+    wk->settings.line_mask = l < 6 ? LINE_STYLE[l-1] : wk->settings.ud_ls;
+}
 
 
-void polyline(workstation_t *wk, vdi_point_t *point, int count, int16_t color)
+int16_t vsl_type(int16_t handle, int16_t style) {
+    workstation_t *wk = &workstation[handle];
+    if (style > wk->features.n_line_types)
+        style = LS_SOLID;
+    wk->settings.line_index = style;
+    return style;
+}
+
+
+void vsl_udsty(int16_t handle, int16_t user_defined_style) {
+    workstation_t *wk = &workstation[handle];
+    wk->settings.ud_ls = user_defined_style;
+}
+
+
+void v_pline(uint16_t handle, uint16_t count, const vdi_point_t *points)
+{
+    workstation_t *wk = &workstation[handle];
+    apply_line_index(wk);
+
+    //_debug("\nv_pline entered; color:%d\r\n", wk->settings.line_color);
+
+    polyline(wk, points, count, wk->settings.line_color);
+#if 0 // TODO
+    if (wk->settings.line_width == 1) {
+        polyline(wk, points, count, vwk->line_color);
+        if ((wk->settings.line_beg | vwk->settings.line_end) & ARROWED)
+            arrow(wk, points, count);
+    } else
+        wideline(wk, point, count);
+#endif        
+}
+
+
+void polyline(workstation_t *wk, const vdi_point_t *point, int count, int16_t color)
 {
     int i;
     vdi_line_t line;

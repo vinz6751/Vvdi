@@ -323,7 +323,6 @@ _debug("y=%u, rect->y2=%u\n",y, rect->y2);
         }
         break;
     default:                /* replace mode */
-    _debug("draw_rectangle1, %u %u %u %p %p\n",y, rect->y2, vplanes, b.addr, *((long**)v_bas_ad));
         for (y = rect->y1; y <= rect->y2; y++, b.addr += yinc) {
             int pattern_index = pattern_mask & y;   /* starting pattern */
             int plane;

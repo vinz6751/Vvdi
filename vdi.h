@@ -25,7 +25,6 @@ extern const workstation_features_t default_capabilities;
 typedef struct  {
     void     *driver_data;          // The driver does what it wants with that
     uint16_t line_type;
-    uint16_t line_colour;
     uint16_t line_mask;  // For dashed/dotted lines. Is derived from line_index and ud_ls
     uint16_t line_marker_type;
     uint16_t line_marker_colour;
@@ -118,5 +117,7 @@ typedef struct {
     uint16_t reserved14;
     uint16_t reserved15;
 } workstation_t;
+
+extern workstation_t workstation[];
 
 #endif

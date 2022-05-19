@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-#define MIN_FILL_STYLE  0       /* for vsf_interior() */
+#define MIN_FILL_STYLE  0       // for vsf_interior()
 #define FIS_HOLLOW      0
 #define FIS_SOLID       1
 #define FIS_PATTERN     2
@@ -13,15 +13,15 @@
 #define MAX_FILL_STYLE  4
 #define DEF_FILL_STYLE  FIS_HOLLOW
 
-#define MIN_FILL_HATCH  1       /* for vsf_style() when fill style is hatch */
+#define MIN_FILL_HATCH  1       // for vsf_style() when fill style is hatch
 #define MAX_FILL_HATCH  12
 #define DEF_FILL_HATCH  1
 
-#define MIN_FILL_PATTERN 1      /* for vsf_style() when fill style is pattern */
+#define MIN_FILL_PATTERN 1      // For vsf_style() when fill style is pattern
 #define MAX_FILL_PATTERN 24
 #define DEF_FILL_PATTERN 1
 
-#define MIN_WRT_MODE    1       /* for vswr_mode() */
+#define MIN_WRT_MODE    1       // For vswr_mode()
 #define MD_REPLACE      1
 #define MD_TRANS        2
 #define MD_XOR          3
@@ -29,6 +29,14 @@
 #define MAX_WRT_MODE    4
 #define DEF_WRT_MODE    MD_REPLACE
 
+#define LS_SOLID        1       // For vsl_type
+#define LS_LONG_DASH    2
+#define LS_DOT          3
+#define LS_DASH_DOT     4
+#define LS_DASH         5
+#define LS_DASH_DOT_DOT 6
+#define LS_USER_DEFINED 7
+#define DEF_LINE_STYLE  LS_SOLID
 
 // This is really the "work_out" array filled when opening a workstation
 typedef union {

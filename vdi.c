@@ -133,6 +133,7 @@ void v_opnwk(const uint16_t *input, uint16_t *handle, uint16_t *output) {
 
             // Defaults
             wk->settings.write_mode = MD_REPLACE;
+            wk->settings.line_index = DEF_LINE_STYLE;
             wk->settings.fill_interior_style = DEF_FILL_STYLE;
             wk->settings.fill_pattern_hatch_style = DEF_FILL_PATTERN;
             set_fill_pattern(&wk->settings); // Needs to be called to setup internal fill stuff
@@ -148,6 +149,7 @@ void v_opnwk(const uint16_t *input, uint16_t *handle, uint16_t *output) {
             wk->physical = true;
             if (wk->physical) {
                 wk->driver->init(&wk->settings);
+                wk->driver->get_features(&wk->features);
             }
 
             screen_info_t *si = &wk->screen_info;
@@ -220,7 +222,7 @@ int16_t vsl_color(int16_t handle, int16_t index) {
     workstation_t *wk = &workstation[handle];
     if (index > wk->screen_info.colors)
         index = 1;    
-    wk->settings.line_colour = index;
+    wk->settings.line_color = index;
     return index;
 }
 
@@ -308,6 +310,7 @@ static inline void sort_corners(vdi_rectangle_t * rect)
         rect->y2 = temp;
     }
 }
+
 
 #if 0 // that shouldn't be needed as we can pass the workstation_settings_t. Unless it gets spoiled by the callee.
 void Vwk2Attrib(const workstation_t *vwk, VwkAttrib *attr, const uint16_t color)
