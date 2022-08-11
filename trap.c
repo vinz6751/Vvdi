@@ -35,9 +35,10 @@ static void vdi_vsf_style(vdi_pb_t *pb) { pb->intout[0] = vsf_style(pb->contrl->
 static void vdi_vsf_interior(vdi_pb_t *pb) { pb->intout[0] = vsf_interior(pb->contrl->wkid, pb->intin[0]); pb->contrl->intout_count = 1; }
 static void vdi_vqf_attributes(vdi_pb_t *pb) { return vqf_attributes(pb->contrl->wkid, pb->intout); pb->contrl->intout_count = 5; }
 static void vdi_vswr_mode(vdi_pb_t *pb) { pb->intout[0] = vswr_mode(pb->contrl->wkid, pb->intin[0]); pb->contrl->intout_count = 1; }
-static void vdi_vr_recfl(vdi_pb_t *pb) { vr_recfl(pb->contrl->wkid, pb->ptsin.pts); }
+static void vdi_vr_recfl(vdi_pb_t *pb) { vr_recfl(pb->contrl->wkid, pb->ptsin.rect); }
 static void vdi_v_gdp(vdi_pb_t *pb); // See below
 static void vdi_v_pline(vdi_pb_t *pb) { v_pline(pb->contrl->wkid, pb->contrl->ptsin_count, pb->ptsin.pts); }
+static void vdi_v_bar(vdi_pb_t *pb) { v_bar(pb->contrl->wkid, pb->ptsin.rect); }
 
 static void (*const vdi_calls[])(vdi_pb_t *) = {
     0L,
@@ -76,19 +77,7 @@ static void vdi_v_gdp(vdi_pb_t *pb)
     //_debug("vdi_v_gdp: subopcode = %u", pb->contrl->subopcode);
     switch (pb->contrl->subopcode) {
     case 1:         /* GDP BAR - converted to alpha 2 RJG 12-1-84 */
-        vdi_vr_recfl(pb);
-#if 0
-        if (wk->settings.fill_perimeter) {
-            wk->settings.line_mask = 0xffff;
-
-            xy[5] = xy[7] = xy[3];
-            xy[3] = xy[9] = xy[1];
-            xy[4] = xy[2];
-            xy[6] = xy[8] = xy[0];
-
-            polyline(wk, pb->ptsin.pts, 5, wk->fill_color);
-        }
-#endif
+        vdi_v_bar(pb);
         break;
 
     case 2:         /* GDP Arc */

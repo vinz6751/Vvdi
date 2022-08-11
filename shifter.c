@@ -103,9 +103,10 @@ static void get_color(uint16_t n, uint16_t *red, uint16_t *green, uint16_t *blue
 
 static void resolution_has_changed(void) {
     uint32_t res = R8(RESOLUTION) & 3;
-    
+
     L.screen_info = st_modes[res];
     L.v_planes_shift = shift_offset[L.screen_info.bitplanes];
+    _debug("res=%ld, bitplanes = %d v_planes_shift=%d\r\n", res, L.screen_info.bitplanes, L.v_planes_shift);Cnecin();
 }
 
 static void set_pixels(const vdi_point_t *pts, uint16_t n, uint16_t color) {
@@ -136,13 +137,14 @@ static void set_pixels(const vdi_point_t *pts, uint16_t n, uint16_t color) {
 
 static uint16_t *get_pixel_addr(const uint16_t x, const uint16_t y)
 {
-    uint16_t *block;
- 
-    block = *((uint16_t**)v_bas_ad);                  /* start of screen */
-    block += (x & 0xfff0) >> L.v_planes_shift;    /* add x coordinate part of addr */
+    uint8_t *block;
+    uint16_t x2 = x & 0xfff0;                     /* ensure that value to be shifted remains signed! */
+    
+    block = *((uint8_t**)v_bas_ad);               /* start of screen */
+    block += x2 >> L.v_planes_shift;              /* add x coordinate part of addr */
     block += muls(y, L.screen_info.line_length);  /* add y coordinate part of addr */
 
-    return block;
+    return (uint16_t*)block;
 }
 
 

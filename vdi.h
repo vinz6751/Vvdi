@@ -38,7 +38,7 @@ typedef struct  {
 
     int16_t chup;                  /* Character Up vector */
     int16_t clip;                  /* Clipping Flag */
-    const Fonthead *cur_font;   /* Pointer to current font */
+    const Fonthead *cur_font;      /* Pointer to current font */
     uint16_t dda_inc;              /* Fraction to be added to the DDA */
     int16_t multifill;             /* Multi-plane fill flag */
     uint16_t pattern_mask;         /* (pattern_mask) Current pattern mask */

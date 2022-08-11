@@ -102,12 +102,17 @@ static void tests(void) {
 
     // vsf_style
     //_debug("vsf_style\n");
-      pb.contrl.opcode = 25;
+    pb.contrl.opcode = 25;
     pb.intin[0] = 5;
-    call_vdi(&vdipb);  
+    call_vdi(&vdipb);
+
+    // vsf_perimeter 
+    pb.contrl.opcode = 104;
+    pb.intin[0] = -1;
+    call_vdi(&vdipb);
 
     // v_bar
-    //_debug("\r\nv_bar\n");
+    _debug("\r\nv_bar\r\n");
     pb.contrl.opcode = 11;
     pb.contrl.subopcode = 1;
     pb.contrl.ptsin_count = 2;
@@ -118,8 +123,8 @@ static void tests(void) {
     pb.ptsin.pts[1].y = 110;
     call_vdi(&vdipb);
 
-
-    //_debug("\nvswr_mode\n");
+#if 0
+    _debug("\nvswr_mode\r\n");
     pb.contrl.opcode = 32;
     pb.intin[0] = MD_REPLACE;
     call_vdi(&vdipb);    
@@ -145,6 +150,7 @@ static void tests(void) {
         pb.ptsin.pts[0].y += 3;
         pb.ptsin.pts[1].y += 3;
     }
+#endif
 
     //_debug("Close workstation\n");
     pb.contrl.opcode = 2;

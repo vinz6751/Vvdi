@@ -7,6 +7,7 @@
 #include "linea.h"
 #include "utils.h"
 #include "vdi.h"
+#include "vdi_funcs.h"
 #include "trap.h"
 
 // Drivers
@@ -238,7 +239,7 @@ int16_t vsf_color(int16_t handle, int16_t index) {
 
 int16_t vsf_perimeter(int16_t handle, int16_t enable) {
     workstation_t *wk = &workstation[handle];
-    wk->settings.fill_perimeter = enable;
+    wk->settings.fill_perimeter = (enable != 0);
     return enable;
 }
 
@@ -372,13 +373,13 @@ static void set_fill_pattern(workstation_settings_t *settings)
 }
 
 // Draw filled rectangle
-void vr_recfl(uint16_t handle, vdi_point_t *pts)
+void vr_recfl(uint16_t handle, vdi_rectangle_t *rect)
 {
-    sort_corners((vdi_rectangle_t*)pts);
+    sort_corners(rect);
 
     // Make temporary copy to prevent the clipping code from damaging
     // the PTSIN values we might need later on for perimeter draws
-    vdi_rectangle_t rect = *(vdi_rectangle_t*)pts;
+    vdi_rectangle_t rect2 = *rect;
 
 #if 0
     if (vwk->clip)
@@ -387,88 +388,29 @@ void vr_recfl(uint16_t handle, vdi_point_t *pts)
 #endif
     /* do the real work... */
     workstation_t *wk = &workstation[handle];
-    wk->driver->draw_rectangle(&wk->settings, &rect);
+    wk->driver->draw_rectangle(&wk->settings, &rect2);
 }
 
 
-
-
-#if 0
-
-static void v_bar(uint16_t handle, vdi_point_t *pts) {
+// Draw filled rectangle with perimeter
+void v_bar(uint16_t handle, vdi_rectangle_t *rect) {
     workstation_t *wk = &workstation[handle];
-    int from_x, to_x;
-    int from_y, to_y;
-    int w,h;
-
-    // Ensure from <= to
-    if (pts[0].x > pts[1].x) {
-        from_x = pts[1].x;
-        to_x = pts[0].x;
-    }
-    else {
-        from_x = pts[0].x;
-        to_x = pts[1].x;
-    }
-
-    if (pts[0].y > pts[1].y) {
-        from_y = pts[1].y;
-        to_y = pts[0].y;
-    } else {
-        from_y = pts[0].y;
-        to_y = pts[1].y;
-    }
     
-    // Clip rectangle
-    if (wk->clip.enabled && 0) {
-        from_x = MAX(from_x, wk->clip.p1.x);
-        from_x = MAX(from_y, wk->clip.p1.y);
-        to_x = MIN(to_x, wk->clip.p2.x);
-        to_y = MIN(to_y, wk->clip.p2.y);
-    }
+    // vdi_line_t ordered= {
+    //     40,110,55,120
+    // };
+    // wk->driver->draw_line(&ordered, &wk->settings, wk->settings.fill_color);
+    // return;
+    vr_recfl(handle, rect);
 
-    h = to_y - from_y;
-    if (h < 0)
-        return;
+    if (wk->settings.fill_perimeter) {
+        wk->settings.line_mask = 0xffff;
+        vdi_point_t pts[5];
+        pts[0].x = pts[4].x = pts[1].x = rect->x1;
+        pts[0].y = pts[4].y = pts[3].y = rect->y1;
+        pts[2].x = pts[3].x = rect->x2;
+        pts[2].y = pts[1].y = rect->y2;
 
-    w = to_x - from_x;
-    if (w < 0)
-        return;
-
-    uint8_t *fb = *((uint8_t**)v_bas_ad);
-    uint8_t *top_left = &fb[wk->screen_info.line_length * from_y + from_x];
-    uint16_t i;
-
-    // Draw perimeter
-    if (wk->settings.fill_perimeter == true) {
-        const int total_border_size = 2;
-        uint8_t *top_border = top_left;
-        uint8_t *btm_border = top_left + wk->screen_info.line_length * h;    
-        // Top/bottom borders
-        i = w;
-_debug("\ni = %d\n",i);
-
-        do {
-                    _debug("*");
-            *top_border++ = (uint8_t)wk->fill_color;
-            *btm_border++ = (uint8_t)wk->fill_color;
-        } while (i--);
-        from_y++;
-        to_y--;
-
-        // Left/right borders
-        i = h - total_border_size;
-        uint8_t *left_border = top_left + wk->screen_info.line_length;
-        uint8_t *right_border = left_border + w;
-        do {
-            *left_border++ = (uint8_t)wk->fill_color;
-            *right_border++ = (uint8_t)wk->fill_color;
-        } while (i--);
-        from_x++;
-        to_x--;
+        polyline(wk, pts, 5, wk->settings.fill_color);
     }
 }
-static void vdi_v_bar(vdi_pb_t *pb) {
-    v_bar(pb->contrl->wkid, pb->ptsin.pts);
-}
-#endif
