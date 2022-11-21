@@ -1,10 +1,11 @@
 #include "debug.h"
 #include "features.h"
+#include "font.h"
 #include "linea.h"
 #include "trap.h"
 #include "vdi_funcs.h"
 
-extern void vdi_install(void);
+extern bool vdi_install(void);
 extern void vdi_uninstall(void);
 
 static void tests(void);
@@ -16,7 +17,10 @@ int main(void)
     linea_init();
 
     // Install trap handler
-    vdi_install();
+    if (!vdi_install()) {
+        printf("Failed to install the VDI !\n");
+        return 0;
+    }
 
     tests();
     
@@ -79,15 +83,17 @@ static void tests(void) {
         features.words[45+i] = pb.ptsout.words[i];
     
     // vs_color: Set color 0
+#if 1
     //_debug("vs_color\n");
     pb.contrl.opcode = 14;
     pb.contrl.ptsin_count = 0;
     pb.contrl.intin_count = 4;
-    pb.intin[0] = 0;
-    pb.intin[1] = 0;
-    pb.intin[2] = 142;
-    pb.intin[3] = 0;
+    pb.intin[0] = 0; // Index
+    pb.intin[1] = 700; // R (0-1000)
+    pb.intin[2] = 700; // G
+    pb.intin[3] = 700; // B
     call_vdi(&vdipb);
+#endif
 
     // vsf_color
     //_debug("vsf_color\n");
@@ -112,7 +118,8 @@ static void tests(void) {
     call_vdi(&vdipb);
 
     // v_bar
-    _debug("\r\nv_bar\r\n");
+#if 1
+    //_debug("\r\nv_bar\r\n");
     pb.contrl.opcode = 11;
     pb.contrl.subopcode = 1;
     pb.contrl.ptsin_count = 2;
@@ -122,9 +129,10 @@ static void tests(void) {
     pb.ptsin.pts[1].x = 400;
     pb.ptsin.pts[1].y = 110;
     call_vdi(&vdipb);
+#endif
 
-#if 0
-    _debug("\nvswr_mode\r\n");
+#if 1
+    //_debug("\nvswr_mode\r\n");
     pb.contrl.opcode = 32;
     pb.intin[0] = MD_REPLACE;
     call_vdi(&vdipb);    
@@ -144,21 +152,57 @@ static void tests(void) {
         // v_pline        
         pb.contrl.opcode = 6;
         pb.contrl.ptsin_count = 2;
-        pb.ptsin.pts[0].x = 20;        
-        pb.ptsin.pts[1].x = 350;        
+        pb.ptsin.pts[0].x = 20;
+        pb.ptsin.pts[1].x = 350;
         call_vdi(&vdipb);
         pb.ptsin.pts[0].y += 3;
         pb.ptsin.pts[1].y += 3;
     }
 #endif
+#if false
+    /* Testing of font load is disabled because the font is loaded at startup of the VDI */
+    fonthead_t *font = font_load("c:\\gemsys\\MONACO10.FNT");
+    printf("offset: %lx\r\n", offsetof(fonthead_t, off_table));
+    if (font) {
+        printf("Font name: %s\r\n", font->name);
+        printf("First,last: %d,%d\r\n", font->first_ade, font->last_ade);
+        printf("Form width,height: %d,%d\r\n", font->form_width, font->form_height);
+    }
+#endif
 
-    //_debug("Close workstation\n");
+    // vqt_name
+    {
+    char font_name[32];
+    pb.contrl.opcode = 130;
+    pb.contrl.intin_count = 1;
+    for (i=0; i<10; i++) {
+        pb.intin[0] = i;
+        call_vdi(&vdipb);
+        if (pb.intout[0]) {
+            for (i = 0; i < 32; i++)
+                font_name[i] = pb.intout[i+1];
+            printf("vqt_name: Font %d is %s\r\n", pb.intout[0], font_name);
+        }
+    }
+    }
+
+    // v_gtext
+    pb.contrl.opcode = 8;
+    pb.ptsin.pts[0].x = pb.ptsin.pts[0].y = 130;
+    pb.contrl.ptsin_count = 1;
+    char message[] = "TEST of v_gtext using monaco font";
+    char *c = message;
+    i = 0;
+    while (pb.intin[i++] = *c++)
+      ;
+    pb.contrl.intin_count = -i;
+    call_vdi(&vdipb);
+
+    //_debug("Close workstation\r\n");
     pb.contrl.opcode = 2;
     pb.contrl.ptsin_count = 0;
     pb.contrl.intin_count = 0;
     pb.contrl.wkid = handle;
     call_vdi(&vdipb);
-    _debug("OK\r\n");
+    //_debug("OK\r\n");
 }
-
-

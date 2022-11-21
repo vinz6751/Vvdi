@@ -62,22 +62,24 @@ static void get_screen_info(uint16_t *resx, uint16_t *resy, uint32_t *ncolors, u
 
 #define LUT_ADDRESS(lut, n) (uint8_t*)(VICKY_LUT_BASE + lut*0x400 + n*4)
 
+#define COLOR_SCALER 1000/255 // VDI colors components are 0-1000 , Vicky are 0-255)
+
 // Set color on LUT 0, colors are 8 bits each
 static void set_color(uint16_t n, uint16_t red, uint16_t green, uint16_t blue) {
     const int lut = 0;
     volatile uint8_t * c = LUT_ADDRESS(lut,n);
-    c[0] = blue;
-    c[1] = green;
-    c[2] = red;
+    c[0] = blue / COLOR_SCALER;
+    c[1] = green / COLOR_SCALER;
+    c[2] = red / COLOR_SCALER;
     c[3] = 0xff;
 }
 
 static void get_color(uint16_t n, uint16_t *red, uint16_t *green, uint16_t *blue) {
     const int lut = 0;
     volatile uint8_t * c = LUT_ADDRESS(lut,n);
-    *blue = c[0];
-    *green = c[1];
-    *red = c[2];
+    *blue = c[0] * COLOR_SCALER;
+    *green = c[1] * COLOR_SCALER;
+    *red = c[2] * COLOR_SCALER;
 }
 
 static screen_info_t screen_info;

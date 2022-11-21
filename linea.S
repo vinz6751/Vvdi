@@ -13,5 +13,5 @@ _linea_init:
     rts
 
 _linea_vars:  .ds.l 1
-_linea_fonts: .ds.l 1    
+_linea_fonts: .ds.l 1
 _linea_routs: .ds.l 1

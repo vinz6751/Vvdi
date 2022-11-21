@@ -3,11 +3,13 @@
 
 #include <stdint.h>
 
+extern int16_t *fill_patterns_by_interior[];
+
 /* the storage for the used defined fill pattern */
-extern uint16_t ROM_UD_PATRN[16];
+extern uint16_t fill_pattern_builtin[16];
 
 extern const uint16_t OEMMSKPAT;
-extern const uint16_t OEMPAT[128];
+extern const uint16_t fill_pattern_hatchs[128];
 
 extern const uint16_t DITHRMSK;              /* mask off all but four scans */
 extern const uint16_t DITHER[32];

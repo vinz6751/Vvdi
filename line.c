@@ -109,18 +109,20 @@ static bool clip_line(workstation_t *wk, vdi_line_t *line)
         }
         deltax = line->x2 - line->x1;
         deltay = line->y2 - line->y1;
+
+        vdi_clipping_rect_t *clip = &wk->settings.clip_rect;
         if (line_clip_flag & 1) {               /* left ? */
-            *y = line->y1 + mul_div_round(deltay, (wk->settings.xmn_clip-line->x1), deltax);
-            *x = wk->settings.xmn_clip;
+            *y = line->y1 + mul_div_round(deltay, (clip->xmin-line->x1), deltax);
+            *x = clip->xmin;
         } else if (line_clip_flag & 2) {        /* right ? */
-            *y = line->y1 + mul_div_round(deltay, (wk->settings.xmx_clip-line->x1), deltax);
-            *x = wk->settings.xmx_clip;
+            *y = line->y1 + mul_div_round(deltay, (clip->xmax-line->x1), deltax);
+            *x = clip->xmax;
         } else if (line_clip_flag & 4) {        /* top ? */
-            *x = line->x1 + mul_div_round(deltax, (wk->settings.ymn_clip-line->y1), deltay);
-            *y = wk->settings.ymn_clip;
+            *x = line->x1 + mul_div_round(deltax, (clip->ymin-line->y1), deltay);
+            *y = clip->ymin;
         } else if (line_clip_flag & 8) {        /* bottom ? */
-            *x = line->x1 + mul_div_round(deltax, (wk->settings.ymx_clip-line->y1), deltay);
-            *y = wk->settings.ymx_clip;
+            *x = line->x1 + mul_div_round(deltax, (clip->ymax-line->y1), deltay);
+            *y = clip->ymax;
         }
     }
     return true;              /* segment now clipped  */
@@ -142,13 +144,13 @@ static int16_t clip_code(workstation_t *wk, int16_t x, int16_t y)
     int16_t clip_flag;
 
     clip_flag = 0;
-    if (x < wk->settings.xmn_clip)
+    if (x < wk->settings.clip_rect.xmin)
         clip_flag = 1;
-    else if (x > wk->settings.xmx_clip)
+    else if (x > wk->settings.clip_rect.xmax)
         clip_flag = 2;
-    if (y < wk->settings.ymn_clip)
+    if (y < wk->settings.clip_rect.ymin)
         clip_flag += 4;
-    else if (y > wk->settings.ymx_clip)
+    else if (y > wk->settings.clip_rect.ymax)
         clip_flag += 8;
     return (clip_flag);
 }

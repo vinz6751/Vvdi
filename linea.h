@@ -59,8 +59,8 @@ typedef struct
   uint16_t pattern_mask;                 /*  50: Fill pattern "mask"          */
   int16_t  multifill,              /*  52: Fill pattern for planes      */
            clip,                   /*  54: Flag for clipping            */
-           xmn_clip, ymn_clip,
-           xmx_clip, ymx_clip,     /*  60: Clipping rectangle           */
+           xmin, ymin,
+           xmax, ymax,     /*  60: Clipping rectangle           */
                                    /*      Rest for text_blt:           */
            xacc_dda,               /*  64: Set to 0x8000 before text    */
                                    /*      output                       */

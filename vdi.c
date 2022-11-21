@@ -2,9 +2,12 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "assignsys.h"
 #include "debug.h"
 #include "fill_patterns.h"
+#include "font.h"
 #include "linea.h"
+#include "memory.h"
 #include "utils.h"
 #include "vdi.h"
 #include "vdi_funcs.h"
@@ -16,9 +19,10 @@
 
 #define v_bas_ad 0x44e
 
-#define DEFAULT_DRIVER &shifter_driver
-
-
+// Preferences
+#define DEFAULT_DRIVER    &shifter_driver
+#define MEM_BLOCKS        2 /* Default number of memory blocks to allocate for internal use */
+#define MEM_BLOCK_SIZE    10 /* Default size of those blocks, in kbyte */
 #define WORKSTATIONS_SIZE 8
 
 const workstation_features_t default_capabilities = {
@@ -93,21 +97,27 @@ void v_clrwk(uint16_t handle);
 
 // Helpers
 static void set_fill_pattern(workstation_settings_t *settings);
-static inline void sort_corners(vdi_rectangle_t * rect);
+void sort_corners(vdi_rectangle_t * rect);
 
 // Utility methods -----------------------------------------------------------
 void debug(const char* __restrict__ s, ...);
 
 
-void vdi_install(void)
-{
+bool vdi_install(void) {
+    // Do that first as it can fail
+    mem_initialize(MEM_BLOCKS, MEM_BLOCK_SIZE*1024L);
+    
+    assignsys_init();
+    font_init();
     trap_install();
+    //_debug("installed\r\n");
 }
 
 
-void vdi_uninstall(void)
-{
+void vdi_uninstall(void) {
     trap_uninstall();
+    font_deinit();
+    assignsys_init();
 }
 
 
@@ -125,9 +135,9 @@ void workstation_init(void) {
 
 
 void v_opnwk(const uint16_t *input, uint16_t *handle, uint16_t *output) {
-    int i;
-    for (i=1; i<WORKSTATIONS_SIZE; i++) { // FIXME we start with one so we never return 0 on success (0 means failure). Wastes memory!
-        workstation_t *wk = &workstation[i];
+    int wk_id;
+    for (wk_id=0; wk_id<WORKSTATIONS_SIZE; wk_id++) { // FIXME we start with one so we never return 0 on success (0 means failure). Wastes memory!
+        workstation_t *wk = &workstation[wk_id];
 
         if (wk->in_use == false) {
             wk->in_use  = true;
@@ -143,7 +153,7 @@ void v_opnwk(const uint16_t *input, uint16_t *handle, uint16_t *output) {
             memcpy(&(wk->settings), input, sizeof(uint16_t)*16);
 
             // Fill output
-            *handle = i;
+            *handle = wk_id;
 
             // We're a physical workstation so take care of driver stuff
             wk->driver = DEFAULT_DRIVER; // TODO when we support printers etc. ;) this will have to change
@@ -151,6 +161,7 @@ void v_opnwk(const uint16_t *input, uint16_t *handle, uint16_t *output) {
             if (wk->physical) {
                 wk->driver->init(&wk->settings);
                 wk->driver->get_features(&wk->features);
+                wk->phys_wk = 0L;
             }
 
             screen_info_t *si = &wk->screen_info;
@@ -161,8 +172,11 @@ void v_opnwk(const uint16_t *input, uint16_t *handle, uint16_t *output) {
             output[1] = wk->screen_info.max_y;
             output[13] = wk->screen_info.colors;
 
+            fonthead_t *default_font = font_get_loaded()[0]; // FIXME
+            v_fontinit(wk_id, HIGH32(default_font), LOW32(default_font));
+
             if (wk->physical)
-                v_clrwk(i);
+                v_clrwk(wk_id);
 
             return;
         }
@@ -198,22 +212,28 @@ void vs_clip(uint16_t handle, uint16_t clip_flag, vdi_rectangle_t *rect) {
     wk->settings.clip = clip_flag;
     if (wk->settings.clip) {
         sort_corners(rect);
-        wk->settings.xmn_clip = MAX(0, rect->x1);
-        wk->settings.ymn_clip = MAX(0, rect->y1);
-        wk->settings.xmx_clip = MIN(wk->screen_info.max_x, rect->x2);
-        wk->settings.ymx_clip = MIN(wk->screen_info.max_y, rect->y2);
+        wk->settings.clip_rect.xmin = MAX(0, rect->x1);
+        wk->settings.clip_rect.ymin = MAX(0, rect->y1);
+        wk->settings.clip_rect.xmax = MIN(wk->screen_info.max_x, rect->x2);
+        wk->settings.clip_rect.ymax = MIN(wk->screen_info.max_y, rect->y2);
     } else {
-        wk->settings.xmn_clip = 0;
-        wk->settings.ymn_clip = 0;
-        wk->settings.xmx_clip = wk->screen_info.max_x;
-        wk->settings.ymx_clip = wk->screen_info.max_y;
+        wk->settings.clip_rect.xmin = 0;
+        wk->settings.clip_rect.ymin = 0;
+        wk->settings.clip_rect.xmax = wk->screen_info.max_x;
+        wk->settings.clip_rect.ymax = wk->screen_info.max_y;
     }
 }
+
 
 // Colors ---------------------------------------------------------------------
 
 void vs_color(int16_t handle, int16_t index, int16_t *rgb_in) {
     workstation[handle].driver->set_color(index, rgb_in[0], rgb_in[1], rgb_in[2]);
+}
+
+
+int16_t vq_color(int16_t handle, int16_t index, int16_t set_flag, int16_t *rgb) {
+    workstation[handle].driver->get_color(index, &rgb[0], &rgb[1], &rgb[2]);
 }
 
 
@@ -291,11 +311,10 @@ uint16_t vswr_mode(uint16_t handle, uint16_t mode) {
 }
 
 
-
 // Graphics Drawing Primitives ------------------------------------------------
 
 // Rearrange corners or a rectangle so we have (lower left, upper right). Was arb_corner
-static inline void sort_corners(vdi_rectangle_t * rect)
+void sort_corners(vdi_rectangle_t * rect)
 {
     /* Fix the x coordinate values, if necessary. */
     if (rect->x1 > rect->x2) {
@@ -351,7 +370,7 @@ static void set_fill_pattern(workstation_settings_t *settings)
             pp = &DITHER[fi * (pm + 1)];
         } else {
             pm = OEMMSKPAT;
-            pp = &OEMPAT[(fi - 8) * (pm + 1)];
+            pp = &fill_pattern_hatchs[(fi - 8) * (pm + 1)];
         }
         break;
     case FIS_HATCH:
@@ -371,6 +390,7 @@ static void set_fill_pattern(workstation_settings_t *settings)
     settings->pattern_ptr = (uint16_t*)pp;
     settings->pattern_mask = pm;
 }
+
 
 // Draw filled rectangle
 void vr_recfl(uint16_t handle, vdi_rectangle_t *rect)

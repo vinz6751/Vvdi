@@ -12,6 +12,12 @@
     #define R32(x) *((volatile uint32_t * const)(x))
 #endif
 
+#define MAKE_UINT16(hi,lo) (((uint16_t)(uint8_t)(hi) << 8) | (uint8_t)(lo))
+#define MAKE_UINT32(hi,lo) (((uint32_t)(uint16_t)(hi) << 16) | (uint16_t)(lo))
+
+#define HIGH32(x) (((uint32_t)x) >> 16)
+#define LOW32(x)  (((uint32_t)x) & 0xffff)
+
 /*
  *  min(): return minimum of two values
  *  Implemented as a macro to allow any type
@@ -36,23 +42,24 @@
 })
 
 
-// Perform int16_t multiply/divide with rounding
-int16_t mul_div_round(int16_t mult1, int16_t mult2, int16_t divisor);
+#define swap16(a)                         \
+  __asm__ volatile                        \
+  ("ror   #8,%0"                          \
+  : "=d"(a)          /* outputs */        \
+  : "0"(a)           /* inputs  */        \
+  : "cc"             /* clobbered */      \
+  )
 
 
-// Multiply two signed shorts, returning a signed long
-static inline int32_t muls(int16_t m1, int16_t m2)
-{
-    int32_t ret;
-
-    __asm__ (
-      "muls %2,%0"
-    : "=d"(ret)
-    : "%0"(m1), "idm"(m2)
-    );
-
-    return ret;
-}
+#define swap32(a)                         \
+  __asm__ volatile                        \
+  ("ror   #8,%0\n\t"                      \
+   "swap  %0\n\t"                         \
+   "ror   #8,%0"                          \
+  : "=d"(a)          /* outputs */        \
+  : "0"(a)           /* inputs  */        \
+  : "cc"             /* clobbered */      \
+  )
 
 
 #define rolw1(x)                    \
@@ -71,5 +78,7 @@ static inline int32_t muls(int16_t m1, int16_t m2)
     : "0" (x)       /* inputs */    \
     : "cc"          /* clobbered */ \
     )
+
+int16_t util_read_file_to_memory(const char *filename, void **file, int32_t *size);
 
 #endif

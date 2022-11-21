@@ -12,6 +12,7 @@ void v_clswk(uint16_t handle);
 void v_clrwk(uint16_t handle);
 void vs_clip(uint16_t handle, uint16_t clip_flag, vdi_rectangle_t *rect);
 void vs_color(int16_t handle, int16_t index, int16_t *rgb_in);
+int16_t vq_color(int16_t handle, int16_t index, int16_t set_flag, int16_t *rgb);
 int16_t vsl_color(int16_t handle, int16_t index);
 int16_t vsl_type(int16_t handle, int16_t style);
 void vsl_udsty(int16_t handle, int16_t user_defined_style);

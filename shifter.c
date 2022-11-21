@@ -3,11 +3,12 @@
 #include <stdint.h>
 
 #include "debug.h"
+#include "math.h"
 #include "utils.h"
 #include "vdi.h"
 
 // Shifter registers
-#define PALETTE    (uint16_t*const)0xffff8240L
+#define PALETTE    ((uint16_t*const)0xffff8240L)
 #define RESOLUTION 0xffff8260L
 
 // Private structure for parameter passing
@@ -65,30 +66,30 @@ static void get_screen_info(uint16_t *resx, uint16_t *resy, uint32_t *ncolors, u
 }
 
 
+#define COLOR_SCALER (1000/7)  // VDI colors are 0-1000, ST colors are 0-7. FIXME for STE it would be different (0-15)
+
 static inline uint16_t scale1000to7(uint16_t c) {
     // This involves a division so is not really performant on a 68000...
-    return c / 142;
+    return c / COLOR_SCALER;
 }
 
 
 // Set color on LUT 0, colors are 8 bits each
 static void set_color(uint16_t n, uint16_t red, uint16_t green, uint16_t blue) {
-    uint16_t * palette = PALETTE;
     uint16_t color;
 
     // ST
     color = scale1000to7(red) << 8;
-    color += scale1000to7(green) << 4;
-    color += scale1000to7(blue);
-    palette[n] = color;
+    color |= scale1000to7(green) << 4;
+    color |= scale1000to7(blue);
+    PALETTE[n] = color;
 
     // TODO: STE (scale 1000 to 15)
 }
 
 // Read hardware colors and return RGB values 
 static void get_color(uint16_t n, uint16_t *red, uint16_t *green, uint16_t *blue) {
-    const uint16_t *palette = PALETTE;
-    uint16_t color = palette[n];
+    uint16_t color = PALETTE[n];
 
     // ST
     *blue = color & 7;
@@ -97,6 +98,10 @@ static void get_color(uint16_t n, uint16_t *red, uint16_t *green, uint16_t *blue
     color >> 4;
     *red = color & 7;
     
+    /* Scale to 0-1000*/
+    *blue *= COLOR_SCALER;
+    *green *= COLOR_SCALER;
+    *red *= COLOR_SCALER;
     // TODO: STE
 }
 
@@ -114,13 +119,14 @@ static void set_pixels(const vdi_point_t *pts, uint16_t n, uint16_t color) {
     vdi_point_t *pt;
     int i;
 
-    while (n++) {
+    while (n--) {
         pt = (vdi_point_t *)pts++;
         uint16_t *block;
         uint16_t color2;
         uint16_t mask;
         int      plane;
         block = block = get_pixel_addr(pt->x, pt->y);
+        //_debug("pixel %d,%d address: %p, bitplanes:%d\r\n", pt->x, pt->y, block, L.screen_info.bitplanes);
         mask = 0x8000 >> (pt->x & 0xf);   /* initial bit position in int16_t */
         color2 = color;
 

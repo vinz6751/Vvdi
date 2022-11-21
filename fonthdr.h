@@ -17,7 +17,7 @@
 
 #define FONT_NAME_LEN 32
 
-typedef struct font_head Fonthead;
+typedef struct font_head fonthead_t;
 struct font_head {
     int16_t  font_id;
     int16_t  point;
@@ -39,13 +39,13 @@ struct font_head {
     uint16_t skew;                 /* mask for skewing */
     uint16_t flags;                /* see above */
 
-    const uint8_t *hor_table;     /* horizontal offsets */
-    const uint16_t *off_table;     /* character offsets  */
-    const uint16_t *dat_table;     /* character definitions (raster data) */
+    uint8_t *hor_table;            /* horizontal offsets */
+    uint16_t *off_table;           /* character offsets  */
+    uint16_t *dat_table;           /* character definitions (raster data) */
     uint16_t form_width;           /* width of raster in bytes */
     uint16_t form_height;          /* height of raster in lines */
 
-    Fonthead *next_font;        /* pointer to next font */
+    fonthead_t *next_font;           /* pointer to next font */
     uint16_t reserved;             /* Atari-reserved flag */
 };
 
