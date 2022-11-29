@@ -17,27 +17,12 @@ void polyline(workstation_t *wk, const vdi_point_t *point, int count, int16_t co
 const uint16_t LINE_STYLE[6] = { 0xFFFF, 0xFFF0, 0xC0C0, 0xFF18, 0xFF00, 0xF191 };
 
 // Set the workstation line pattern bits according to settings (formerly set_LN_MASK).
-void apply_line_index(workstation_t *wk)
+static void apply_line_index(workstation_t *wk)
 {
     int16_t l;
 
     l = wk->settings.line_index;
     wk->settings.line_mask = l < 6 ? LINE_STYLE[l-1] : wk->settings.ud_ls;
-}
-
-
-int16_t vsl_type(int16_t handle, int16_t style) {
-    workstation_t *wk = &workstation[handle];
-    if (style > wk->features.n_line_types)
-        style = LS_SOLID;
-    wk->settings.line_index = style;
-    return style;
-}
-
-
-void vsl_udsty(int16_t handle, int16_t user_defined_style) {
-    workstation_t *wk = &workstation[handle];
-    wk->settings.ud_ls = user_defined_style;
 }
 
 

@@ -18,8 +18,10 @@ EXEC=C:\Atari\Disques\C_ST_TOS\vvdi.prg
 
 # conic.c is not included yet because it doesn't compile, it's not fully adapted yet to work with
 # vvdi as it relies on a Fgfb structure representing a colour that I don't understand why it even exists
-SRC_C=assignsys.c debug.c fill_patterns.c line.c math.c memory.c shifter.c trap.c vdi.c vicky.c font.c text.c utils.c \
-	raster.c test.c 
+SRC_C=assignsys.c attribute.c debug.c fill_patterns.c line.c math.c memory.c \
+	shifter.c trap.c vdi.c vicky.c font.c text.c utils.c \
+	raster.c workstation.c \
+	test.c
 SRC_S=linea.S trap_S.s math_S.s
 SRC=$(SRC_C) $(SRC_S)
 OBJ_C=$(SRC_C:.c=.o)

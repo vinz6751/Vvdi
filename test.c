@@ -89,9 +89,9 @@ static void tests(void) {
     pb.contrl.ptsin_count = 0;
     pb.contrl.intin_count = 4;
     pb.intin[0] = 0; // Index
-    pb.intin[1] = 700; // R (0-1000)
-    pb.intin[2] = 700; // G
-    pb.intin[3] = 700; // B
+    pb.intin[1] = 1000; // R (0-1000)
+    pb.intin[2] = 900; // G
+    pb.intin[3] = 1000; // B
     call_vdi(&vdipb);
 #endif
 
