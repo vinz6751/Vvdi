@@ -31,7 +31,7 @@ void v_pline(uint16_t handle, uint16_t count, const vdi_point_t *points)
     workstation_t *wk = &workstation[handle];
     apply_line_index(wk);
 
-    //_debug("\nv_pline entered; color:%d\r\n", wk->settings.line_color);
+    //_debug("\nv_pline entered; color:%d", wk->settings.line_color);
 
     polyline(wk, points, count, wk->settings.line_color);
 #if 0 // TODO

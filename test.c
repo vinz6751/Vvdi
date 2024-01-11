@@ -23,7 +23,7 @@ int main(void)
     }
 
     tests();
-    
+
     vdi_uninstall();
 
     return 0;
@@ -72,8 +72,8 @@ static void tests(void) {
     pb.contrl.ptsin_count = 0;
     pb.contrl.intin_count = 11;
     pb.contrl.intout_count = sizeof(features)/sizeof(int16_t);
-    for(i = 0; i < 11; i++)
-        pb.intin[i] = work_in[i];
+    for(i = 0; i < 10; i++)
+        pb.intin[i] = work_in[i] = 1;
     
     call_vdi(&vdipb);
     handle = pb.contrl.wkid;
@@ -117,9 +117,7 @@ static void tests(void) {
     pb.intin[0] = -1;
     call_vdi(&vdipb);
 
-    // v_bar
-#if 1
-    //_debug("\r\nv_bar\r\n");
+#if 1 // v_bar
     pb.contrl.opcode = 11;
     pb.contrl.subopcode = 1;
     pb.contrl.ptsin_count = 2;
@@ -131,13 +129,12 @@ static void tests(void) {
     call_vdi(&vdipb);
 #endif
 
-#if 1
-    //_debug("\nvswr_mode\r\n");
+#if 1 // vswr_mode
     pb.contrl.opcode = 32;
     pb.intin[0] = MD_REPLACE;
     call_vdi(&vdipb);    
 
-    //_debug("\vsl_color\n");
+    // vsl_color
     pb.contrl.opcode = 17;
     pb.intin[0] = 2;
     call_vdi(&vdipb);
@@ -162,11 +159,11 @@ static void tests(void) {
 #if false
     /* Testing of font load is disabled because the font is loaded at startup of the VDI */
     fonthead_t *font = font_load("c:\\gemsys\\MONACO10.FNT");
-    printf("offset: %lx\r\n", offsetof(fonthead_t, off_table));
+    printf("offset: %lx", offsetof(fonthead_t, off_table));
     if (font) {
-        printf("Font name: %s\r\n", font->name);
-        printf("First,last: %d,%d\r\n", font->first_ade, font->last_ade);
-        printf("Form width,height: %d,%d\r\n", font->form_width, font->form_height);
+        printf("Font name: %s", font->name);
+        printf("First,last: %d,%d", font->first_ade, font->last_ade);
+        printf("Form width,height: %d,%d", font->form_width, font->form_height);
     }
 #endif
 
@@ -181,7 +178,7 @@ static void tests(void) {
         if (pb.intout[0]) {
             for (i = 0; i < 32; i++)
                 font_name[i] = pb.intout[i+1];
-            printf("vqt_name: Font %d is %s\r\n", pb.intout[0], font_name);
+            printf("vqt_name: Font %d is %s", pb.intout[0], font_name);
         }
     }
     }
@@ -198,11 +195,11 @@ static void tests(void) {
     pb.contrl.intin_count = -i;
     call_vdi(&vdipb);
 
-    //_debug("Close workstation\r\n");
+    //_debug("Close workstation");
     pb.contrl.opcode = 2;
     pb.contrl.ptsin_count = 0;
     pb.contrl.intin_count = 0;
     pb.contrl.wkid = handle;
     call_vdi(&vdipb);
-    //_debug("OK\r\n");
+    _debug("end of tests");
 }

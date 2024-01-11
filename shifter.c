@@ -1,7 +1,7 @@
 // Atari shifter driver
 
 #include <stdint.h>
-
+#include <osbind.h> // Pour débug
 #include "debug.h"
 #include "math.h"
 #include "utils.h"
@@ -111,7 +111,7 @@ static void resolution_has_changed(void) {
 
     L.screen_info = st_modes[res];
     L.v_planes_shift = shift_offset[L.screen_info.bitplanes];
-    _debug("res=%ld, bitplanes = %d v_planes_shift=%d\r\n", res, L.screen_info.bitplanes, L.v_planes_shift);Cnecin();
+    _debug("res=%ld, bitplanes = %d v_planes_shift=%d", res, L.screen_info.bitplanes, L.v_planes_shift);Cnecin();
 }
 
 static void set_pixels(const vdi_point_t *pts, uint16_t n, uint16_t color) {
@@ -126,7 +126,7 @@ static void set_pixels(const vdi_point_t *pts, uint16_t n, uint16_t color) {
         uint16_t mask;
         int      plane;
         block = block = get_pixel_addr(pt->x, pt->y);
-        //_debug("pixel %d,%d address: %p, bitplanes:%d\r\n", pt->x, pt->y, block, L.screen_info.bitplanes);
+        //_debug("pixel %d,%d address: %p, bitplanes:%d", pt->x, pt->y, block, L.screen_info.bitplanes);
         mask = 0x8000 >> (pt->x & 0xf);   /* initial bit position in int16_t */
         color2 = color;
 

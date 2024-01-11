@@ -19,18 +19,19 @@ static fonthead_t *loaded_fonts[MAX_LOADED_FONTS];
 
 /* Initialize the font system */
 void font_init(void) {
-    _debug("font_init\r\n");
+    _debug("font_init");
     for (int i=0; i<MAX_LOADED_FONTS; i++)
         loaded_fonts[i] = 0L;
 
-    fonthead_t *font = font_load("c:\\gemsys\\MONACO10.FNT");
+    const char fontname[] = "c:\\gemsys\\MONACO10.FNT";
+    _debug("loading font %s");
+    fonthead_t *font = font_load(fontname);
 }
 
 
 bool font_register(fonthead_t *font) {
-    _debug("font_register\r\n");
+    _debug("font_register");
     for (int i=0; i<MAX_LOADED_FONTS; i++) {
-        _debug("*\r\n");
         if (loaded_fonts[i] == 0L) {
             loaded_fonts[i] = font;
             return true;
@@ -51,7 +52,6 @@ void font_deinit(void) {
 
 
 fonthead_t **font_get_loaded(void) {
-    _debug("font_get_loaded\r\n");
     return loaded_fonts;
 }
 

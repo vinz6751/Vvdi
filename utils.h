@@ -80,5 +80,6 @@
     )
 
 int16_t util_read_file_to_memory(const char *filename, void **file, int32_t *size);
+char get_boot_drive();
 
 #endif

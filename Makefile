@@ -2,7 +2,7 @@ DEBUG=yes
 
 # libcmini is a lightweight replacement of the MiNTlib, which produces much smaller executables.
 # See https://github.com/freemint/libcmini
-LIBCMINI=/home/vincent/Atari/Crossdev/libcmini
+LIBCMINI=/cygdrive/c/Atari/Crossdev/libcmini
 
 # GGC-based toolchain for building, this uses the GCC 4.6.4 from Vincent Rivière
 # See http://vincent.riviere.free.fr/soft/m68k-atari-mint/

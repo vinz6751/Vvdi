@@ -123,7 +123,7 @@ uint16_t vswr_mode(uint16_t handle, uint16_t mode)
 static void set_fill_pattern(workstation_settings_t *settings)
 {
     uint16_t fi, pm;
-    const uint16_t *pp = NULL;
+    const uint16_t *pp = 0L;
 
     fi = settings->fill_index;
     pm = 0;

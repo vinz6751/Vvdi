@@ -94,7 +94,6 @@ const workstation_features_t default_capabilities = {
 void sort_corners(vdi_rectangle_t * rect);
 
 // Utility methods -----------------------------------------------------------
-void debug(const char* __restrict__ s, ...);
 
 
 bool vdi_install(void)
@@ -105,7 +104,8 @@ bool vdi_install(void)
     assignsys_init();
     font_init();
     trap_install();
-    //_debug("installed\r\n");
+    _debug("installed");
+    return true;
 }
 
 
@@ -113,7 +113,8 @@ void vdi_uninstall(void)
 {
     trap_uninstall();
     font_deinit();
-    assignsys_init();
+    assignsys_deinit();
+    _debug("uninstalled");
 }
 
 

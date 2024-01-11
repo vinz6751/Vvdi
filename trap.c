@@ -20,8 +20,7 @@ void trap_install(void) {
 }
 
 void trap_uninstall(void) {
-    old_trap_handler = Setexc(TRAP2_VECNR, -1L);
-    Setexc(TRAP2_VECNR,trap_handler);  
+    Setexc(TRAP2_VECNR,old_trap_handler);
 }
 
 // Trap handler, function dispatcher -------------------------------------------

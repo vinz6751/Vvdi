@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 
-#define _debug printf
-//void _debug(const char* __restrict__ s, ...);
+void _debug(const char* __restrict__ s, ...);
 
 #endif

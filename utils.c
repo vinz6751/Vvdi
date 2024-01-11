@@ -6,6 +6,8 @@
 
 #include "debug.h"
 
+/* Reads the file into a memory buffer. The buffer must be free()'ed after use.
+ * the file and size are set if the file could be read successfully */
 int16_t util_read_file_to_memory(const char *filename, void **file, int32_t *size) {
     uint16_t fh;
     uint16_t ret;
@@ -26,9 +28,9 @@ int16_t util_read_file_to_memory(const char *filename, void **file, int32_t *siz
     }
     Fseek(0L, fh, 0/*from start*/);
 
-    *file = (void*)Malloc(*size);
+    *file = (void*)malloc(*size);
     if (*file == 0L) {
-        _debug("Not enough memory to load font file %s", filename);
+        _debug("Not enough memory (requested %ld) to load font file %s", *size, filename);
         ret = ENOMEM;
         goto error;
     }
@@ -38,16 +40,27 @@ int16_t util_read_file_to_memory(const char *filename, void **file, int32_t *siz
         ret = (int16_t)r;
         goto error;
     }
+
     ret = 0; /* E_OK, no error */
     goto ok;
 
 error:
     if (*file) {
-        Mfree(*file);
+        free(*file);
         *file = 0L;
     }
 ok:
     if (fh > 0)
         Fclose(fh);
     return ret;
+}
+
+
+#define _bootdev 0x446 /*_bootdev TOS variable*/
+static long do_get_boot_drive() {
+    return ((long)'A') + *((uint16_t*)_bootdev);
+}
+char get_boot_drive() {
+    /* TODO: we could use Ssystem if present */
+    return (char)Supexec(do_get_boot_drive);
 }

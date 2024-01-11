@@ -9,7 +9,7 @@ void _debug(const char* __restrict__ s, ...)
     char msg[80];
     va_list ap;
     va_start(ap, s);
-    sprintf(msg,s,ap);
+    vsprintf(msg,s,ap);
     va_end(ap);
     char *c = msg;
     while (*c)
