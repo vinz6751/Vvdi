@@ -108,6 +108,8 @@ typedef struct {
     // Let the VDI know that the video resolution has changed. VDI should examine hardware registers
     // and update its internal variables.
     void (*resolution_has_changed)(void);
+    // Get the palette index and hardware value of a pixel
+    void (*get_pixels)(const vdi_point_t *pts, uint16_t n, int16_t *color, int16_t *pixel);
     // Sets the pixels to the specified color number
     void (*set_pixels)(const vdi_point_t *pts, uint16_t n, uint16_t color);
     void (*draw_line)(const vdi_line_t *line, workstation_settings_t *settings, uint16_t color);

@@ -114,6 +114,43 @@ static void resolution_has_changed(void) {
     _debug("res=%ld, bitplanes = %d v_planes_shift=%d", res, L.screen_info.bitplanes, L.v_planes_shift);Cnecin();
 }
 
+
+static int16_t get_pixel_value(uint16_t mask, uint16_t * addr)
+{
+    uint16_t color = 0;                    /* clear the pixel value accumulator. */
+    uint16_t plane = L.screen_info.bitplanes;
+
+    for(;;) {
+        /* test the bit. */
+        if ( *--addr & mask )
+            color |= 1;         /* if 1, set color accumulator bit. */
+
+        if ( --plane == 0 )
+            break;
+
+        color <<= 1;            /* shift accumulator for next bit_plane. */
+    }
+
+    return color;       /* this is the color we are searching for */
+}
+
+
+static void get_pixels(const vdi_point_t *pts, uint16_t n, uint16_t *pixel, uint16_t *color)
+{
+    uint16_t *addr;
+    uint16_t mask;
+// TODO there's conversions to do. See EmuTOS
+    for ( ; n ; n--, pts++) {
+        /* Convert x,y to start address and bit mask */
+        addr = get_pixel_addr(pts->x, pts->y);
+        addr += L.screen_info.bitplanes;    /* Start at highest-order bit_plane */
+        mask = 0x8000 >> (pts->x & 0xf);           /* Initial bit position in WORD */
+
+        return get_pixel_value(mask, addr); /* Return the composed color value */
+    }
+}
+
+
 static void set_pixels(const vdi_point_t *pts, uint16_t n, uint16_t color) {
     uint16_t *fb = (uint16_t*)R32(v_bas_ad);
     vdi_point_t *pt;
@@ -681,6 +718,7 @@ vdi_driver_t shifter_driver = {
     set_color,
     get_color,
     resolution_has_changed,
+    get_pixels,
     set_pixels,
     draw_line,
     draw_rectangle

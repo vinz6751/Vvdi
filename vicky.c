@@ -110,13 +110,26 @@ static void resolution_has_changed(void) {
     screen_info.line_length = screen_info.max_x + 1;
 }
 
+static void get_pixels(const vdi_point_t *pts, uint16_t n, int16_t *pixel, int16_t *color) {
+    uint8_t *fb = (uint8_t*)R32(v_bas_ad);
+    vdi_point_t *pt;
+    uint8_t c;
+    
+    while (n++) {
+        pt = (vdi_point_t *)pts++;
+        c = *(fb + pt->y * screen_info.line_length + pt->x);
+        *color++ = c;
+        *pixel++ = c;
+    }
+}
+
 static void set_pixels(const vdi_point_t *pts, uint16_t n, uint16_t color) {
     uint8_t *fb = (uint8_t*)R32(v_bas_ad);
     vdi_point_t *pt;
     
     while (n++) {
         pt = (vdi_point_t *)pts++;
-        fb + pt->y * screen_info.line_length + pt->x;
+        *(fb + pt->y * screen_info.line_length + pt->x) = color; // Overflow possible ?
     }
 }
 
@@ -132,6 +145,7 @@ vdi_driver_t vicky2_driver = {
     set_color,
     get_color,
     resolution_has_changed,
+    get_pixels,
     set_pixels,
     draw_line,
     0L

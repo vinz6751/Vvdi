@@ -24,6 +24,7 @@ void trap_uninstall(void) {
 }
 
 // Trap handler, function dispatcher -------------------------------------------
+// TODO set ptsout, intout
 static void vdi_v_opnwk(vdi_pb_t *pb) { v_opnwk(pb->intin, &pb->contrl->wkid, pb->intout); }
 static void vdi_v_clswk(vdi_pb_t *pb) { v_clswk(pb->contrl->wkid); }
 static void vdi_v_clrwk(vdi_pb_t *pb) { v_clrwk(pb->contrl->wkid); }
@@ -49,6 +50,7 @@ static void vdi_vst_color(vdi_pb_t *pb) { pb->intout[0] = vst_color(pb->contrl->
 static void void_vst_height(vdi_pb_t *pb) { vst_height(pb->contrl->wkid, pb->ptsin.words[1], &(pb->ptsout.words[0]), &(pb->ptsout.words[1]), &(pb->ptsout.words[2]), &(pb->ptsout.words[3])); }
 static void vdi_vqt_name(vdi_pb_t *pb) { pb->intout[0] = vqt_name(pb->contrl->wkid, pb->intin[0], &(pb->intout[1])); pb->contrl->intout_count = 1; }
 static void vdi_vr_trnfm(vdi_pb_t *pb) { vr_trnfm(*(MFDB **)&(pb->contrl->word[7]), *(MFDB **)&(pb->contrl->word[9])); }
+static void vdi_v_get_pixel(vdi_pb_t *pb) { v_get_pixel(pb->contrl->wkid, pb->ptsin.words[0], pb->ptsin.words[1], &(pb->intout[0]), &(pb->intout[1]) ); }
 
 static void (*const vdi_calls[])(vdi_pb_t *) = {
     0L,
@@ -77,6 +79,7 @@ void vdi_dispatcher(vdi_pb_t *pb) {
         case 32: vdi_vswr_mode(pb); break;
         case 37: vdi_vqf_attributes(pb); break;
         case 104: vdi_vsf_perimeter(pb); break;
+        case 105: vdi_v_get_pixel(pb); break;
         case 110: vdi_vr_trnfm(pb); break;
         case 113: vdi_vsl_udsty(pb); break;
         case 129: vdi_vs_clip(pb); break;
