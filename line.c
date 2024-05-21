@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include "math.h"
 
 #include "debug.h"
 #include "utils.h"

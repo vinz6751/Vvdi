@@ -135,7 +135,7 @@ static int16_t get_pixel_value(uint16_t mask, uint16_t * addr)
 }
 
 
-static void get_pixels(const vdi_point_t *pts, uint16_t n, uint16_t *pixel, uint16_t *color)
+static void get_pixels(const vdi_point_t *pts, uint16_t n, int16_t *pixel, int16_t *color)
 {
     uint16_t *addr;
     uint16_t mask;
@@ -146,7 +146,7 @@ static void get_pixels(const vdi_point_t *pts, uint16_t n, uint16_t *pixel, uint
         addr += L.screen_info.bitplanes;    /* Start at highest-order bit_plane */
         mask = 0x8000 >> (pts->x & 0xf);           /* Initial bit position in WORD */
 
-        return get_pixel_value(mask, addr); /* Return the composed color value */
+        get_pixel_value(mask, addr); /* Return the composed color value */
     }
 }
 
