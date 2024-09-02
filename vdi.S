@@ -29,7 +29,7 @@ _vdi_install:
 	movem.l (%sp)+,#1036
 	rts
 	.even
-	.globl	_vdi_uninstall
+	.globl	vdi_uninstall
 _vdi_uninstall:
 	movem.l #12320,-(%sp)
 	moveq #34,%d3
@@ -43,8 +43,8 @@ _vdi_uninstall:
 	addql	#8,%sp
 | 0 "" 2
 #NO_APP
-	move.l %d0,_old_trap_handler
-	move.l #_trap_handler,%d0
+	move.l %d0,old_trap_handler
+	move.l #trap_handler,%d0
 #APP
 | 147 "vdi.c" 1
 	movl	%d0,%sp@-
@@ -59,16 +59,16 @@ _vdi_uninstall:
 .LC0:
 	.ascii "DISPATCHING pb=%p\12\0"
 	.even
-	.globl	_vdi_dispatcher
-_vdi_dispatcher:
+	.globl	vdi_dispatcher
+vdi_dispatcher:
 	move.l 4(%sp),-(%sp)
 	pea .LC0
 	jsr _printf
 	addq.l #8,%sp
 	rts
 	.even
-	.globl	_workstation_init
-_workstation_init:
+	.globl	workstation_init
+workstation_init:
 	lea _workstation+26,%a0
 	moveq #0,%d0
 .L5:
